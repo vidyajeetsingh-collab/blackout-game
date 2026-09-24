@@ -1,7 +1,8 @@
 // PROJECT: BLACKOUT
-// Player System
+// Player + Mobile Movement System
 
 const Player = {
+
     position: {
         x: 0,
         y: 0,
@@ -22,17 +23,27 @@ const Player = {
     isRunning: false,
     isCrouching: false,
 
+    joystick: {
+        active: false,
+        x: 0,
+        y: 0
+    },
+
     init() {
+
         this.position.x = 0;
         this.position.y = 0;
         this.position.z = 0;
 
         this.health = 100;
 
+        this.setupJoystick();
+
         console.log("Player initialized.");
     },
 
     update(deltaTime) {
+
         let speed = this.speed;
 
         if (this.isRunning) {
@@ -43,11 +54,151 @@ const Player = {
             speed = this.crouchSpeed;
         }
 
-        // Movement will be connected to the
-        // mobile joystick in the next systems.
+        // Mobile joystick movement
+        const moveX = this.joystick.x;
+        const moveZ = this.joystick.y;
+
+        this.position.x +=
+            moveX * speed * deltaTime;
+
+        this.position.z +=
+            moveZ * speed * deltaTime;
+
+        // Keep player inside the current test area
+        this.position.x =
+            Math.max(-45, Math.min(45, this.position.x));
+
+        this.position.z =
+            Math.max(-45, Math.min(45, this.position.z));
+    },
+
+    setupJoystick() {
+
+        const joystick =
+            document.getElementById(
+                "movementJoystick"
+            );
+
+        const stick =
+            document.getElementById(
+                "joystickStick"
+            );
+
+        if (!joystick || !stick) {
+            console.error("Joystick not found.");
+            return;
+        }
+
+        let pointerId = null;
+
+        const updateJoystick = (event) => {
+
+            const rect =
+                joystick.getBoundingClientRect();
+
+            const centerX =
+                rect.left + rect.width / 2;
+
+            const centerY =
+                rect.top + rect.height / 2;
+
+            let dx =
+                event.clientX - centerX;
+
+            let dy =
+                event.clientY - centerY;
+
+            const maxDistance =
+                rect.width * 0.30;
+
+            const distance =
+                Math.hypot(dx, dy);
+
+            if (distance > maxDistance) {
+
+                dx =
+                    (dx / distance) *
+                    maxDistance;
+
+                dy =
+                    (dy / distance) *
+                    maxDistance;
+            }
+
+            stick.style.left =
+                `calc(50% + ${dx}px)`;
+
+            stick.style.top =
+                `calc(50% + ${dy}px)`;
+
+            this.joystick.x =
+                dx / maxDistance;
+
+            this.joystick.y =
+                dy / maxDistance;
+
+            this.joystick.active = true;
+        };
+
+        joystick.addEventListener(
+            "pointerdown",
+            (event) => {
+
+                pointerId =
+                    event.pointerId;
+
+                joystick.setPointerCapture(
+                    pointerId
+                );
+
+                updateJoystick(event);
+            }
+        );
+
+        joystick.addEventListener(
+            "pointermove",
+            (event) => {
+
+                if (
+                    this.joystick.active &&
+                    event.pointerId === pointerId
+                ) {
+                    updateJoystick(event);
+                }
+            }
+        );
+
+        const resetJoystick = () => {
+
+            pointerId = null;
+
+            this.joystick.active = false;
+
+            this.joystick.x = 0;
+            this.joystick.y = 0;
+
+            stick.style.left = "50%";
+            stick.style.top = "50%";
+        };
+
+        joystick.addEventListener(
+            "pointerup",
+            resetJoystick
+        );
+
+        joystick.addEventListener(
+            "pointercancel",
+            resetJoystick
+        );
+
+        joystick.addEventListener(
+            "lostpointercapture",
+            resetJoystick
+        );
     },
 
     damage(amount) {
+
         this.health -= amount;
 
         if (this.health < 0) {
@@ -62,6 +213,7 @@ const Player = {
     },
 
     heal(amount) {
+
         this.health += amount;
 
         if (this.health > 100) {
@@ -72,14 +224,18 @@ const Player = {
     },
 
     die() {
+
         console.log("PLAYER DOWN");
 
-        if (typeof Missions !== "undefined") {
+        if (
+            typeof Missions !== "undefined"
+        ) {
             Missions.playerDied();
         }
     },
 
     reset() {
+
         this.health = 100;
 
         this.position.x = 0;
@@ -92,6 +248,11 @@ const Player = {
         this.isRunning = false;
         this.isCrouching = false;
 
-        UI.updateHealth(this.health);
+        this.joystick.x = 0;
+        this.joystick.y = 0;
+
+        UI.updateHealth(
+            this.health
+        );
     }
 };
