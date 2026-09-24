@@ -626,7 +626,7 @@ const Renderer = {
 
             this.drawCube(
                 building[0],
-                building[2] / 0.0,
+                building[4] / 2
                 building[1],
                 building[3],
                 building[4],
