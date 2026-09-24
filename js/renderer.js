@@ -11,50 +11,112 @@ const Renderer = {
 
     vertexCount: 0,
 
+    aPosition: null,
+    aColor: null,
+
+    uProjection: null,
+    uView: null,
+
     init() {
+
         this.gl = Engine.gl;
 
-        if (!this.gl) return;
+        if (!this.gl) {
+            console.error("WebGL unavailable.");
+            return;
+        }
 
         this.createShaderProgram();
         this.createSceneGeometry();
 
-        console.log("BLACKOUT 3D CITY RENDERER READY.");
+        console.log(
+            "BLACKOUT 3D CITY RENDERER READY."
+        );
     },
 
     createShaderProgram() {
 
         const gl = this.gl;
 
-        const vertexShaderSource = `
-            attribute vec3 aPosition;
-            attribute vec3 aColor;
+        const isWebGL2 =
+            typeof WebGL2RenderingContext !== "undefined" &&
+            gl instanceof WebGL2RenderingContext;
 
-            uniform mat4 uProjection;
-            uniform mat4 uView;
+        let vertexShaderSource;
+        let fragmentShaderSource;
 
-            varying vec3 vColor;
+        if (isWebGL2) {
 
-            void main() {
-                gl_Position =
-                    uProjection *
-                    uView *
-                    vec4(aPosition, 1.0);
+            vertexShaderSource = `#version 300 es
 
-                vColor = aColor;
-            }
-        `;
+                in vec3 aPosition;
+                in vec3 aColor;
 
-        const fragmentShaderSource = `
-            precision mediump float;
+                uniform mat4 uProjection;
+                uniform mat4 uView;
 
-            varying vec3 vColor;
+                out vec3 vColor;
 
-            void main() {
-                gl_FragColor =
-                    vec4(vColor, 1.0);
-            }
-        `;
+                void main() {
+
+                    gl_Position =
+                        uProjection *
+                        uView *
+                        vec4(aPosition, 1.0);
+
+                    vColor = aColor;
+                }
+            `;
+
+            fragmentShaderSource = `#version 300 es
+
+                precision mediump float;
+
+                in vec3 vColor;
+
+                out vec4 outColor;
+
+                void main() {
+
+                    outColor =
+                        vec4(vColor, 1.0);
+                }
+            `;
+
+        } else {
+
+            vertexShaderSource = `
+                attribute vec3 aPosition;
+                attribute vec3 aColor;
+
+                uniform mat4 uProjection;
+                uniform mat4 uView;
+
+                varying vec3 vColor;
+
+                void main() {
+
+                    gl_Position =
+                        uProjection *
+                        uView *
+                        vec4(aPosition, 1.0);
+
+                    vColor = aColor;
+                }
+            `;
+
+            fragmentShaderSource = `
+                precision mediump float;
+
+                varying vec3 vColor;
+
+                void main() {
+
+                    gl_FragColor =
+                        vec4(vColor, 1.0);
+                }
+            `;
+        }
 
         const vertexShader =
             this.compileShader(
@@ -67,6 +129,13 @@ const Renderer = {
                 gl.FRAGMENT_SHADER,
                 fragmentShaderSource
             );
+
+        if (!vertexShader || !fragmentShader) {
+            console.error(
+                "BLACKOUT shader creation failed."
+            );
+            return;
+        }
 
         this.program =
             gl.createProgram();
@@ -81,20 +150,54 @@ const Renderer = {
             fragmentShader
         );
 
-        gl.linkProgram(this.program);
+        gl.linkProgram(
+            this.program
+        );
 
-        if (!gl.getProgramParameter(
-            this.program,
-            gl.LINK_STATUS
-        )) {
+        if (
+            !gl.getProgramParameter(
+                this.program,
+                gl.LINK_STATUS
+            )
+        ) {
+
             console.error(
+                "Shader program link error:",
                 gl.getProgramInfoLog(
                     this.program
                 )
             );
+
+            return;
         }
 
-        gl.useProgram(this.program);
+        gl.useProgram(
+            this.program
+        );
+
+        this.aPosition =
+            gl.getAttribLocation(
+                this.program,
+                "aPosition"
+            );
+
+        this.aColor =
+            gl.getAttribLocation(
+                this.program,
+                "aColor"
+            );
+
+        this.uProjection =
+            gl.getUniformLocation(
+                this.program,
+                "uProjection"
+            );
+
+        this.uView =
+            gl.getUniformLocation(
+                this.program,
+                "uView"
+            );
     },
 
     compileShader(type, source) {
@@ -109,15 +212,29 @@ const Renderer = {
             source
         );
 
-        gl.compileShader(shader);
+        gl.compileShader(
+            shader
+        );
 
-        if (!gl.getShaderParameter(
-            shader,
-            gl.COMPILE_STATUS
-        )) {
+        if (
+            !gl.getShaderParameter(
+                shader,
+                gl.COMPILE_STATUS
+            )
+        ) {
+
             console.error(
-                gl.getShaderInfoLog(shader)
+                "Shader compile error:",
+                gl.getShaderInfoLog(
+                    shader
+                )
             );
+
+            gl.deleteShader(
+                shader
+            );
+
+            return null;
         }
 
         return shader;
@@ -125,237 +242,369 @@ const Renderer = {
 
     createSceneGeometry() {
 
-        const vertices = [];
+        const positions = [];
         const colors = [];
 
-        const addCube = (
+        // Ground
+        this.addCube(
+            positions,
+            colors,
+            0,
+            -0.5,
+            0,
+            50,
+            0.5,
+            50,
+            [0.12, 0.15, 0.14]
+        );
+
+        // Residential buildings
+        this.addBuilding(
+            positions,
+            colors,
+            -15,
+            3,
+            -15,
+            7,
+            6,
+            7
+        );
+
+        this.addBuilding(
+            positions,
+            colors,
+            15,
+            4,
+            -15,
+            8,
+            8,
+            7
+        );
+
+        this.addBuilding(
+            positions,
+            colors,
+            -17,
+            3,
+            12,
+            7,
+            6,
+            8
+        );
+
+        // Downtown buildings
+        this.addBuilding(
+            positions,
+            colors,
+            0,
+            7,
+            -18,
+            8,
+            14,
+            8
+        );
+
+        this.addBuilding(
+            positions,
+            colors,
+            18,
+            6,
+            5,
+            7,
+            12,
+            7
+        );
+
+        this.addBuilding(
+            positions,
+            colors,
+            -18,
+            5,
+            -2,
+            7,
+            10,
+            7
+        );
+
+        // Industrial buildings
+        this.addBuilding(
+            positions,
+            colors,
+            0,
+            3,
+            18,
+            12,
+            6,
+            8
+        );
+
+        this.addBuilding(
+            positions,
+            colors,
+            -25,
+            2.5,
+            25,
+            8,
+            5,
+            8
+        );
+
+        // Roads
+        this.addCube(
+            positions,
+            colors,
+            0,
+            -0.23,
+            0,
+            6,
+            0.05,
+            50,
+            [0.05, 0.06, 0.07]
+        );
+
+        this.addCube(
+            positions,
+            colors,
+            0,
+            -0.22,
+            0,
+            50,
+            0.05,
+            6,
+            [0.05, 0.06, 0.07]
+        );
+
+        this.positionBuffer =
+            this.gl.createBuffer();
+
+        this.gl.bindBuffer(
+            this.gl.ARRAY_BUFFER,
+            this.positionBuffer
+        );
+
+        this.gl.bufferData(
+            this.gl.ARRAY_BUFFER,
+            new Float32Array(positions),
+            this.gl.STATIC_DRAW
+        );
+
+        this.colorBuffer =
+            this.gl.createBuffer();
+
+        this.gl.bindBuffer(
+            this.gl.ARRAY_BUFFER,
+            this.colorBuffer
+        );
+
+        this.gl.bufferData(
+            this.gl.ARRAY_BUFFER,
+            new Float32Array(colors),
+            this.gl.STATIC_DRAW
+        );
+
+        this.vertexCount =
+            positions.length / 3;
+
+        console.log(
+            "City geometry:",
+            this.vertexCount,
+            "vertices"
+        );
+    },
+
+    addBuilding(
+        positions,
+        colors,
+        x,
+        y,
+        z,
+        width,
+        height,
+        depth
+    ) {
+
+        this.addCube(
+            positions,
+            colors,
             x,
             y,
             z,
             width,
             height,
             depth,
-            color
-        ) => {
-
-            const x1 = x - width / 2;
-            const x2 = x + width / 2;
-
-            const y1 = y;
-            const y2 = y + height;
-
-            const z1 = z - depth / 2;
-            const z2 = z + depth / 2;
-
-            const cube = [
-
-                // Front
-                x1,y1,z2,  x2,y1,z2,  x2,y2,z2,
-                x1,y1,z2,  x2,y2,z2,  x1,y2,z2,
-
-                // Back
-                x2,y1,z1,  x1,y1,z1,  x1,y2,z1,
-                x2,y1,z1,  x1,y2,z1,  x2,y2,z1,
-
-                // Left
-                x1,y1,z1,  x1,y1,z2,  x1,y2,z2,
-                x1,y1,z1,  x1,y2,z2,  x1,y2,z1,
-
-                // Right
-                x2,y1,z2,  x2,y1,z1,  x2,y2,z1,
-                x2,y1,z2,  x2,y2,z1,  x2,y2,z2,
-
-                // Top
-                x1,y2,z2,  x2,y2,z2,  x2,y2,z1,
-                x1,y2,z2,  x2,y2,z1,  x1,y2,z1,
-
-                // Bottom
-                x1,y1,z1,  x2,y1,z1,  x2,y1,z2,
-                x1,y1,z1,  x2,y1,z2,  x1,y1,z2
-            ];
-
-            for (let i = 0; i < cube.length; i += 3) {
-                vertices.push(
-                    cube[i],
-                    cube[i + 1],
-                    cube[i + 2]
-                );
-
-                colors.push(
-                    color[0],
-                    color[1],
-                    color[2]
-                );
-            }
-        };
-
-        // Ground
-        addCube(
-            0, -0.25, 0,
-            100, 0.5, 100,
-            [0.12, 0.14, 0.15]
+            [0.22, 0.25, 0.28]
         );
-
-        // Residential buildings
-        addCube(
-            -14, 0, -12,
-            10, 7, 10,
-            [0.22, 0.25, 0.27]
-        );
-
-        addCube(
-            12, 0, -15,
-            9, 10, 9,
-            [0.18, 0.21, 0.24]
-        );
-
-        addCube(
-            -18, 0, 10,
-            12, 6, 9,
-            [0.25, 0.23, 0.21]
-        );
-
-        addCube(
-            17, 0, 15,
-            11, 8, 11,
-            [0.20, 0.22, 0.23]
-        );
-
-        // Downtown towers
-        addCube(
-            -2, 0, -25,
-            12, 18, 10,
-            [0.16, 0.20, 0.25]
-        );
-
-        addCube(
-            15, 0, -30,
-            10, 24, 10,
-            [0.13, 0.17, 0.22]
-        );
-
-        addCube(
-            -20, 0, -28,
-            9, 15, 9,
-            [0.20, 0.21, 0.23]
-        );
-
-        // Industrial structures
-        addCube(
-            28, 0, 5,
-            15, 7, 12,
-            [0.25, 0.24, 0.20]
-        );
-
-        addCube(
-            30, 0, 22,
-            12, 9, 15,
-            [0.21, 0.22, 0.20]
-        );
-
-        // Player placeholder
-        addCube(
-            0, 0, 0,
-            1.2, 2.0, 1.0,
-            [0.12, 0.45, 0.55]
-        );
-
-        this.positionBuffer =
-            this.createBuffer(vertices);
-
-        this.colorBuffer =
-            this.createBuffer(colors);
-
-        this.vertexCount =
-            vertices.length / 3;
     },
 
-    createBuffer(data) {
+    addCube(
+        positions,
+        colors,
+        x,
+        y,
+        z,
+        width,
+        height,
+        depth,
+        color
+    ) {
+
+        const x1 =
+            x - width / 2;
+
+        const x2 =
+            x + width / 2;
+
+        const y1 =
+            y - height / 2;
+
+        const y2 =
+            y + height / 2;
+
+        const z1 =
+            z - depth / 2;
+
+        const z2 =
+            z + depth / 2;
+
+        const vertices = [
+
+            // Front
+            x1,y1,z2,
+            x2,y1,z2,
+            x2,y2,z2,
+
+            x1,y1,z2,
+            x2,y2,z2,
+            x1,y2,z2,
+
+            // Back
+            x2,y1,z1,
+            x1,y1,z1,
+            x1,y2,z1,
+
+            x2,y1,z1,
+            x1,y2,z1,
+            x2,y2,z1,
+
+            // Left
+            x1,y1,z1,
+            x1,y1,z2,
+            x1,y2,z2,
+
+            x1,y1,z1,
+            x1,y2,z2,
+            x1,y2,z1,
+
+            // Right
+            x2,y1,z2,
+            x2,y1,z1,
+            x2,y2,z1,
+
+            x2,y1,z2,
+            x2,y2,z1,
+            x2,y2,z2,
+
+            // Top
+            x1,y2,z2,
+            x2,y2,z2,
+            x2,y2,z1,
+
+            x1,y2,z2,
+            x2,y2,z1,
+            x1,y2,z1,
+
+            // Bottom
+            x1,y1,z1,
+            x2,y1,z1,
+            x2,y1,z2,
+
+            x1,y1,z1,
+            x2,y1,z2,
+            x1,y1,z2
+        ];
+
+        for (let i = 0; i < vertices.length; i += 3) {
+
+            positions.push(
+                vertices[i],
+                vertices[i + 1],
+                vertices[i + 2]
+            );
+
+            colors.push(
+                color[0],
+                color[1],
+                color[2]
+            );
+        }
+    },
+
+    render(cameraPosition, cameraTarget) {
 
         const gl = this.gl;
 
-        const buffer =
-            gl.createBuffer();
-
-        gl.bindBuffer(
-            gl.ARRAY_BUFFER,
-            buffer
-        );
-
-        gl.bufferData(
-            gl.ARRAY_BUFFER,
-            new Float32Array(data),
-            gl.STATIC_DRAW
-        );
-
-        return buffer;
-    },
-
-    render() {
-
-        const gl = this.gl;
-
-        if (!gl || !this.program) {
+        if (
+            !gl ||
+            !this.program ||
+            !this.positionBuffer
+        ) {
             return;
         }
 
-        Engine.clear();
+        gl.useProgram(
+            this.program
+        );
 
-        gl.useProgram(this.program);
+        gl.clearColor(
+            0.035,
+            0.05,
+            0.065,
+            1
+        );
 
-        const aspect =
-            Engine.getAspectRatio();
+        gl.clear(
+            gl.COLOR_BUFFER_BIT |
+            gl.DEPTH_BUFFER_BIT
+        );
+
+        gl.enable(
+            gl.DEPTH_TEST
+        );
+
+        gl.depthFunc(
+            gl.LEQUAL
+        );
 
         const projection =
             this.perspective(
-                Math.PI / 3,
-                aspect,
+                60 * Math.PI / 180,
+                Engine.getAspectRatio(),
                 0.1,
-                200
+                150
             );
 
         const view =
             this.lookAt(
-                Camera.position,
-                Camera.target,
-                { x: 0, y: 1, z: 0 }
-            );
-
-        const projectionLocation =
-            gl.getUniformLocation(
-                this.program,
-                "uProjection"
-            );
-
-        const viewLocation =
-            gl.getUniformLocation(
-                this.program,
-                "uView"
+                cameraPosition,
+                cameraTarget,
+                {
+                    x: 0,
+                    y: 1,
+                    z: 0
+                }
             );
 
         gl.uniformMatrix4fv(
-            projectionLocation,
+            this.uProjection,
             false,
             projection
         );
 
         gl.uniformMatrix4fv(
-            viewLocation,
+            this.uView,
             false,
             view
         );
-
-        const positionLocation =
-            gl.getAttribLocation(
-                this.program,
-                "aPosition"
-            );
-
-        const colorLocation =
-            gl.getAttribLocation(
-                this.program,
-                "aColor"
-            );
 
         gl.bindBuffer(
             gl.ARRAY_BUFFER,
@@ -363,11 +612,11 @@ const Renderer = {
         );
 
         gl.enableVertexAttribArray(
-            positionLocation
+            this.aPosition
         );
 
         gl.vertexAttribPointer(
-            positionLocation,
+            this.aPosition,
             3,
             gl.FLOAT,
             false,
@@ -381,11 +630,11 @@ const Renderer = {
         );
 
         gl.enableVertexAttribArray(
-            colorLocation
+            this.aColor
         );
 
         gl.vertexAttribPointer(
-            colorLocation,
+            this.aColor,
             3,
             gl.FLOAT,
             false,
@@ -408,36 +657,60 @@ const Renderer = {
     ) {
 
         const f =
-            1 / Math.tan(fov / 2);
+            1 /
+            Math.tan(fov / 2);
 
         const rangeInv =
-            1 / (near - far);
+            1 /
+            (near - far);
 
         return new Float32Array([
-            f / aspect, 0, 0, 0,
-            0, f, 0, 0,
-            0, 0,
-            (near + far) * rangeInv,
+
+            f / aspect,
+            0,
+            0,
+            0,
+
+            0,
+            f,
+            0,
+            0,
+
+            0,
+            0,
+            (near + far) *
+            rangeInv,
             -1,
-            0, 0,
-            near * far * rangeInv * 2,
+
+            0,
+            0,
+            (2 * near * far) *
+            rangeInv,
             0
         ]);
     },
 
-    lookAt(eye, center, up) {
+    lookAt(
+        eye,
+        target,
+        up
+    ) {
 
         let zx =
-            eye.x - center.x;
+            eye.x - target.x;
 
         let zy =
-            eye.y - center.y;
+            eye.y - target.y;
 
         let zz =
-            eye.z - center.z;
+            eye.z - target.z;
 
         let length =
-            Math.hypot(zx, zy, zz);
+            Math.hypot(
+                zx,
+                zy,
+                zz
+            );
 
         zx /= length;
         zy /= length;
@@ -456,7 +729,11 @@ const Renderer = {
             up.y * zx;
 
         length =
-            Math.hypot(xx, xy, xz);
+            Math.hypot(
+                xx,
+                xy,
+                xz
+            );
 
         xx /= length;
         xy /= length;
@@ -476,9 +753,20 @@ const Renderer = {
 
         return new Float32Array([
 
-            xx, yx, zx, 0,
-            xy, yy, zy, 0,
-            xz, yz, zz, 0,
+            xx,
+            yx,
+            zx,
+            0,
+
+            xy,
+            yy,
+            zy,
+            0,
+
+            xz,
+            yz,
+            zz,
+            0,
 
             -(
                 xx * eye.x +
