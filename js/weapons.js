@@ -3,181 +3,295 @@
 
 const Weapons = {
 
-    list: [
+    weapons: [
+        {
+            name: "PISTOL",
+            damage: 20,
+            magazine: 12,
+            ammo: 60,
+            maxMagazine: 12,
+            fireRate: 400
+        },
+        {
+            name: "SMG",
+            damage: 12,
+            magazine: 30,
+            ammo: 120,
+            maxMagazine: 30,
+            fireRate: 110
+        },
         {
             name: "ASSAULT RIFLE",
             damage: 25,
             magazine: 30,
             ammo: 120,
-            fireRate: 0.12,
-            accuracy: 0.92
-        },
-        {
-            name: "SMG",
-            damage: 18,
-            magazine: 35,
-            ammo: 140,
-            fireRate: 0.08,
-            accuracy: 0.82
+            maxMagazine: 30,
+            fireRate: 140
         },
         {
             name: "SHOTGUN",
-            damage: 50,
-            magazine: 8,
-            ammo: 40,
-            fireRate: 0.7,
-            accuracy: 0.65
+            damage: 60,
+            magazine: 6,
+            ammo: 36,
+            maxMagazine: 6,
+            fireRate: 750
         },
         {
             name: "SNIPER RIFLE",
             damage: 90,
             magazine: 5,
             ammo: 25,
-            fireRate: 1.2,
-            accuracy: 0.99
-        },
-        {
-            name: "PISTOL",
-            damage: 22,
-            magazine: 12,
-            ammo: 60,
-            fireRate: 0.25,
-            accuracy: 0.9
+            maxMagazine: 5,
+            fireRate: 1000
         }
     ],
 
-    current: 4,
-
-    ammoInMagazine: 12,
-
-    lastShotTime: 0,
+    currentIndex: 0,
+    lastShot: 0,
+    reloading: false,
 
     init() {
 
-        this.current = 4;
-        this.ammoInMagazine =
-            this.list[this.current].magazine;
+        this.currentIndex = 0;
+        this.lastShot = 0;
+        this.reloading = false;
 
-        this.updateHUD();
+        this.updateUI();
 
-        console.log("Weapon system initialized.");
+        this.setupControls();
+
+        console.log(
+            "Weapon system initialized."
+        );
     },
 
     getCurrent() {
-        return this.list[this.current];
+
+        return this.weapons[
+            this.currentIndex
+        ];
     },
 
     fire() {
 
-        const weapon = this.getCurrent();
+        if (this.reloading) {
+            return;
+        }
 
-        const now = performance.now() / 1000;
+        const weapon =
+            this.getCurrent();
+
+        const now =
+            performance.now();
 
         if (
-            now - this.lastShotTime <
+            now - this.lastShot <
             weapon.fireRate
         ) {
             return;
         }
 
-        if (this.ammoInMagazine <= 0) {
+        if (weapon.magazine <= 0) {
 
             this.reload();
+
             return;
         }
 
-        this.lastShotTime = now;
+        this.lastShot = now;
 
-        this.ammoInMagazine--;
+        weapon.magazine--;
 
         console.log(
             "FIRE:",
             weapon.name
         );
 
-        // Check whether the shot hits an enemy.
+        // Try to damage an enemy in front
+        // if the enemy system supports it.
         if (
             typeof Enemies !== "undefined" &&
-            typeof Enemies.checkHit === "function"
+            typeof Enemies.hitTarget === "function"
         ) {
-            Enemies.checkHit(
+
+            Enemies.hitTarget(
                 weapon.damage
             );
         }
 
-        this.updateHUD();
+        this.updateUI();
+
+        // Automatic reload
+        if (
+            weapon.magazine <= 0 &&
+            weapon.ammo > 0
+        ) {
+
+            setTimeout(
+                () => this.reload(),
+                250
+            );
+        }
     },
 
     reload() {
 
-        const weapon = this.getCurrent();
+        if (this.reloading) {
+            return;
+        }
+
+        const weapon =
+            this.getCurrent();
+
+        if (
+            weapon.magazine >=
+            weapon.maxMagazine
+        ) {
+            return;
+        }
 
         if (weapon.ammo <= 0) {
             return;
         }
 
-        const needed =
-            weapon.magazine -
-            this.ammoInMagazine;
+        this.reloading = true;
 
-        const amount =
-            Math.min(
-                needed,
-                weapon.ammo
-            );
+        this.updateUI();
 
-        this.ammoInMagazine += amount;
-        weapon.ammo -= amount;
+        setTimeout(() => {
 
-        console.log(
-            "RELOADED:",
-            weapon.name
-        );
+            const needed =
+                weapon.maxMagazine -
+                weapon.magazine;
 
-        this.updateHUD();
-    },
+            const available =
+                Math.min(
+                    needed,
+                    weapon.ammo
+                );
 
-    switchWeapon(index) {
+            weapon.magazine +=
+                available;
 
-        if (
-            index < 0 ||
-            index >= this.list.length
-        ) {
-            return;
-        }
+            weapon.ammo -=
+                available;
 
-        this.current = index;
+            this.reloading = false;
 
-        const weapon =
-            this.getCurrent();
+            this.updateUI();
 
-        this.ammoInMagazine =
-            Math.min(
-                weapon.magazine,
-                weapon.magazine
-            );
-
-        this.updateHUD();
-
-        console.log(
-            "SWITCHED TO:",
-            weapon.name
-        );
+        }, 900);
     },
 
     nextWeapon() {
 
-        this.current =
-            (this.current + 1) %
-            this.list.length;
+        this.currentIndex++;
+
+        if (
+            this.currentIndex >=
+            this.weapons.length
+        ) {
+
+            this.currentIndex = 0;
+        }
+
+        this.reloading = false;
+
+        this.updateUI();
+    },
+
+    previousWeapon() {
+
+        this.currentIndex--;
+
+        if (
+            this.currentIndex < 0
+        ) {
+
+            this.currentIndex =
+                this.weapons.length - 1;
+        }
+
+        this.reloading = false;
+
+        this.updateUI();
+    },
+
+    updateUI() {
 
         const weapon =
             this.getCurrent();
 
-        this.ammoInMagazine =
-            weapon.magazine;
+        const weaponElement =
+            document.getElementById(
+                "weapon"
+            );
 
-        this.updateHUD();
+        const ammoElement =
+            document.getElementById(
+                "ammo"
+            );
+
+        if (weaponElement) {
+
+            weaponElement.textContent =
+                weapon.name;
+        }
+
+        if (ammoElement) {
+
+            if (this.reloading) {
+
+                ammoElement.textContent =
+                    "RELOADING...";
+
+            } else {
+
+                ammoElement.textContent =
+                    weapon.magazine +
+                    " / " +
+                    weapon.ammo;
+            }
+        }
+    },
+
+    setupControls() {
+
+        const fireButton =
+            document.getElementById(
+                "shootButton"
+            );
+
+        const weaponButton =
+            document.getElementById(
+                "weaponButton"
+            );
+
+        if (fireButton) {
+
+            fireButton.addEventListener(
+                "pointerdown",
+                (event) => {
+
+                    event.preventDefault();
+
+                    this.fire();
+                }
+            );
+        }
+
+        if (weaponButton) {
+
+            weaponButton.addEventListener(
+                "pointerdown",
+                (event) => {
+
+                    event.preventDefault();
+
+                    this.nextWeapon();
+                }
+            );
+        }
     },
 
     addAmmo(amount) {
@@ -187,68 +301,22 @@ const Weapons = {
 
         weapon.ammo += amount;
 
-        this.updateHUD();
+        this.updateUI();
     },
 
-    upgrade(index, upgrades = {}) {
+    reset() {
 
-        if (
-            index < 0 ||
-            index >= this.list.length
+        this.currentIndex = 0;
+        this.reloading = false;
+
+        for (
+            const weapon of this.weapons
         ) {
-            return;
+
+            weapon.magazine =
+                weapon.maxMagazine;
         }
 
-        const weapon =
-            this.list[index];
-
-        if (upgrades.damage) {
-            weapon.damage +=
-                upgrades.damage;
-        }
-
-        if (upgrades.magazine) {
-            weapon.magazine +=
-                upgrades.magazine;
-        }
-
-        if (upgrades.accuracy) {
-            weapon.accuracy +=
-                upgrades.accuracy;
-
-            weapon.accuracy =
-                Math.min(
-                    weapon.accuracy,
-                    1
-                );
-        }
-
-        if (upgrades.fireRate) {
-            weapon.fireRate =
-                Math.max(
-                    0.03,
-                    weapon.fireRate -
-                    upgrades.fireRate
-                );
-        }
-
-        this.updateHUD();
-    },
-
-    updateHUD() {
-
-        const weapon =
-            this.getCurrent();
-
-        if (
-            typeof UI !== "undefined" &&
-            typeof UI.updateWeapon === "function"
-        ) {
-            UI.updateWeapon(
-                weapon.name,
-                this.ammoInMagazine,
-                weapon.ammo
-            );
-        }
+        this.updateUI();
     }
 };
