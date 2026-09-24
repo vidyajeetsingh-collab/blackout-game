@@ -1,260 +1,405 @@
-/* PROJECT: BLACKOUT */
+/* =========================================
+   PROJECT: BLACKOUT
+   Main Game CSS
+   ========================================= */
 
 * {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
     -webkit-tap-highlight-color: transparent;
 }
 
 html,
 body {
-    margin: 0;
-    padding: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
     background: #101820;
-    font-family: Arial, sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     touch-action: none;
 }
+
+body {
+    position: fixed;
+    inset: 0;
+}
+
+/* =========================================
+   GAME CANVAS
+   ========================================= */
 
 #gameCanvas {
     position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
+
+    width: 100vw;
+    height: 100vh;
+
     display: block;
+
     background: #101820;
+
+    z-index: 1;
+
+    touch-action: none;
 }
+
+/* =========================================
+   GAME UI
+   ========================================= */
 
 #gameUI {
     position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    color: white;
+
+    width: 100vw;
+    height: 100vh;
+
     z-index: 10;
+
+    pointer-events: none;
+
+    color: white;
 }
 
-/* HUD */
+/* =========================================
+   TOP HUD
+   ========================================= */
 
-#hud {
+#topHUD {
     position: absolute;
-    top: 14px;
-    left: 14px;
-    right: 14px;
+
+    top: 15px;
+    left: 15px;
+    right: 15px;
+
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    pointer-events: none;
+    align-items: center;
+
+    gap: 10px;
 }
 
 #health,
 #weapon,
 #ammo {
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(5, 10, 16, 0.78);
+
     border: 1px solid rgba(255, 255, 255, 0.15);
+
     border-radius: 8px;
+
     padding: 8px 12px;
+
     font-size: 14px;
+    font-weight: bold;
+
+    text-shadow: 0 1px 2px black;
 }
+
+#health {
+    color: #39ff88;
+}
+
+#weapon {
+    color: #39c8ff;
+}
+
+#ammo {
+    color: #ffffff;
+}
+
+/* =========================================
+   OBJECTIVE
+   ========================================= */
 
 #objective {
     position: absolute;
-    top: 70px;
+
+    top: 65px;
     left: 50%;
+
     transform: translateX(-50%);
-    max-width: 90%;
-    padding: 9px 16px;
+
+    max-width: 80vw;
+
+    padding: 8px 14px;
+
+    background: rgba(5, 10, 16, 0.72);
+
+    border: 1px solid rgba(0, 200, 255, 0.3);
+
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.6);
+
+    color: #d9f8ff;
+
+    font-size: 13px;
     text-align: center;
-    font-size: 14px;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Crosshair */
+/* =========================================
+   CROSSHAIR
+   ========================================= */
 
 #crosshair {
     position: absolute;
+
     left: 50%;
     top: 50%;
-    width: 24px;
-    height: 24px;
+
     transform: translate(-50%, -50%);
-}
 
-#crosshair::before,
-#crosshair::after {
-    content: "";
-    position: absolute;
-    background: rgba(255, 255, 255, 0.9);
-}
-
-#crosshair::before {
-    width: 2px;
-    height: 24px;
-    left: 11px;
-    top: 0;
-}
-
-#crosshair::after {
-    width: 24px;
-    height: 2px;
-    left: 0;
-    top: 11px;
-}
-
-/* Action buttons */
-
-.action-button {
-    position: absolute;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    background: rgba(15, 20, 28, 0.75);
     color: white;
-    font-size: 12px;
+
+    font-size: 26px;
     font-weight: bold;
-    pointer-events: auto;
-    user-select: none;
+
+    line-height: 1;
+
+    text-shadow:
+        0 0 3px black,
+        0 0 6px black;
 }
 
-.action-button:active {
-    transform: scale(0.94);
-    background: rgba(50, 70, 90, 0.9);
-}
-
-#fireButton {
-    right: 24px;
-    bottom: 110px;
-}
-
-#reloadButton {
-    right: 92px;
-    bottom: 48px;
-}
-
-#weaponButton {
-    right: 24px;
-    bottom: 42px;
-}
-
-#crouchButton {
-    right: 160px;
-    bottom: 48px;
-}
-
-#interactButton {
-    right: 160px;
-    bottom: 116px;
-}
-
-/* Joystick */
-
-#joystick {
-    position: absolute;
-    left: 28px;
-    bottom: 40px;
-    width: 130px;
-    height: 130px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.35);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    pointer-events: auto;
-}
-
-#joystickKnob {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 58px;
-    height: 58px;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-/* Pause */
+/* =========================================
+   PAUSE
+   ========================================= */
 
 #pauseButton {
     position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 44px;
-    height: 44px;
-    border: 0;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    pointer-events: auto;
-}
 
-/* Portrait warning */
+    top: 15px;
+    right: 15px;
 
-#portraitOverlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    background: #101820;
+    width: 45px;
+    height: 45px;
+
+    border: 1px solid rgba(255, 255, 255, 0.25);
+
+    border-radius: 50%;
+
+    background: rgba(5, 10, 16, 0.82);
+
     color: white;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 30px;
+
     font-size: 18px;
+    font-weight: bold;
+
+    pointer-events: auto;
+
+    z-index: 20;
 }
 
-/* Mobile portrait */
+/* =========================================
+   CONTROLS
+   ========================================= */
 
-@media (orientation: portrait) {
-    #portraitOverlay {
-        display: flex;
+#controls {
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+}
+
+/* =========================================
+   MOVEMENT JOYSTICK
+   ========================================= */
+
+#movementJoystick {
+    position: absolute;
+
+    left: 25px;
+    bottom: 25px;
+
+    width: 125px;
+    height: 125px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border: 2px solid rgba(255, 255, 255, 0.25);
+
+    pointer-events: auto;
+
+    touch-action: none;
+}
+
+#movementJoystick::before {
+    content: "";
+
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 75px;
+    height: 75px;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#joystickStick {
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 50px;
+    height: 50px;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background: rgba(0, 190, 255, 0.65);
+
+    border: 2px solid rgba(255, 255, 255, 0.65);
+
+    pointer-events: none;
+}
+
+/* =========================================
+   ACTION BUTTONS
+   ========================================= */
+
+#actionButtons {
+    position: absolute;
+
+    right: 20px;
+    bottom: 25px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: flex-end;
+
+    gap: 10px;
+
+    pointer-events: none;
+}
+
+#actionButtons button {
+    width: 105px;
+    height: 48px;
+
+    border: 1px solid rgba(255, 255, 255, 0.25);
+
+    border-radius: 10px;
+
+    background: rgba(5, 10, 16, 0.78);
+
+    color: white;
+
+    font-size: 12px;
+    font-weight: bold;
+
+    pointer-events: auto;
+
+    touch-action: none;
+}
+
+#shootButton {
+    border-color: rgba(255, 70, 70, 0.55) !important;
+}
+
+#weaponButton {
+    border-color: rgba(0, 200, 255, 0.5) !important;
+}
+
+#crouchButton {
+    border-color: rgba(180, 180, 180, 0.4) !important;
+}
+
+/* =========================================
+   BUTTON PRESS
+   ========================================= */
+
+button:active {
+    transform: scale(0.94);
+    background: rgba(40, 50, 60, 0.9) !important;
+}
+
+/* =========================================
+   LANDSCAPE MOBILE
+   ========================================= */
+
+@media (orientation: landscape) {
+
+    #topHUD {
+        top: 10px;
+        left: 15px;
+        right: 70px;
     }
 
-    #gameUI {
-        display: none;
+    #objective {
+        top: 55px;
+    }
+
+    #movementJoystick {
+        left: 25px;
+        bottom: 20px;
+    }
+
+    #actionButtons {
+        right: 20px;
+        bottom: 20px;
+    }
+
+    #actionButtons button {
+        width: 95px;
+        height: 43px;
     }
 }
 
-/* Small screens */
+/* =========================================
+   SMALL SCREENS
+   ========================================= */
 
-@media (max-width: 700px) {
-    #hud {
-        top: 8px;
-        left: 8px;
-        right: 8px;
-    }
+@media (max-width: 600px) {
 
     #health,
     #weapon,
     #ammo {
         padding: 6px 8px;
-        font-size: 12px;
+        font-size: 11px;
     }
 
     #objective {
+        font-size: 11px;
         top: 58px;
-        font-size: 12px;
-        padding: 7px 12px;
     }
 
-    #joystick {
+    #movementJoystick {
         width: 115px;
         height: 115px;
-        left: 18px;
-        bottom: 24px;
     }
 
-    #joystickKnob {
-        width: 52px;
-        height: 52px;
+    #joystickStick {
+        width: 46px;
+        height: 46px;
     }
+}
 
-    .action-button {
-        width: 52px;
-        height: 52px;
-    }
+/* =========================================
+   PREVENT SELECTION
+   ========================================= */
+
+button,
+#gameUI,
+#movementJoystick,
+#actionButtons {
+    user-select: none;
+    -webkit-user-select: none;
 }
