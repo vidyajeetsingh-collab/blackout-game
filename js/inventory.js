@@ -5,85 +5,99 @@ const Inventory = {
 
     weapons: [],
     items: [],
+    maxItems: 20,
 
     init() {
-        this.weapons = [
-            "pistol"
-        ];
-
+        this.weapons = ["PISTOL"];
         this.items = [];
 
         console.log("Inventory initialized.");
     },
 
-    addWeapon(weaponId) {
+    addWeapon(name) {
 
-        if (!this.weapons.includes(weaponId)) {
-            this.weapons.push(weaponId);
+        if (!name) return;
+
+        if (!this.hasWeapon(name)) {
+            this.weapons.push(name);
+            console.log("Weapon added:", name);
         }
-
-        console.log(
-            "Weapon added:",
-            weaponId
-        );
     },
 
-    hasWeapon(weaponId) {
-        return this.weapons.includes(weaponId);
+    hasWeapon(name) {
+        return this.weapons.includes(name);
     },
 
     addItem(item) {
 
+        if (!item) return;
+
+        if (this.items.length >= this.maxItems) {
+            console.log("Inventory full.");
+            return;
+        }
+
         this.items.push(item);
 
-        console.log(
-            "Item collected:",
-            item
-        );
+        console.log("Item added:", item);
     },
 
     useMedkit() {
 
-        const index = this.items.indexOf(
-            "medkit"
-        );
+        const index =
+            this.items.indexOf("MEDKIT");
 
         if (index === -1) {
             return false;
         }
 
-        if (Player.health >= 100) {
-            return false;
-        }
-
         this.items.splice(index, 1);
 
-        Player.heal(50);
+        if (
+            typeof Player !== "undefined" &&
+            typeof Player.heal === "function"
+        ) {
+            Player.heal(40);
+        }
+
+        console.log("Medkit used.");
 
         return true;
     },
 
-    automaticPickup(item) {
+    automaticPickup(loot) {
 
-        if (!item) {
-            return;
+        if (!loot) return;
+
+        if (loot.ammo) {
+
+            if (
+                typeof Weapons !== "undefined" &&
+                typeof Weapons.addAmmo === "function"
+            ) {
+                Weapons.addAmmo(loot.ammo);
+            }
         }
 
-        if (item.type === "ammo") {
-            Weapons.addAmmo(item.amount || 10);
+        if (loot.item) {
+            this.addItem(loot.item);
         }
 
-        else if (item.type === "medkit") {
-            this.addItem("medkit");
-        }
-
-        else if (item.type === "weapon") {
-            this.addWeapon(item.weaponId);
+        if (loot.medkit) {
+            this.addItem("MEDKIT");
         }
     },
 
+    getWeapons() {
+        return [...this.weapons];
+    },
+
+    getItems() {
+        return [...this.items];
+    },
+
     clear() {
-        this.weapons = ["pistol"];
+        this.weapons = ["PISTOL"];
         this.items = [];
     }
 };
