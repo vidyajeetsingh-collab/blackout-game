@@ -3,62 +3,131 @@
 
 const Save = {
 
-    key: "blackout_save",
+    key: "project_blackout_save",
 
     saveGame() {
 
-        const data = {
-            mission: Missions.currentMission,
-            health: Player.health,
-            weapons: Inventory.weapons,
-            items: Inventory.items
-        };
-
-        localStorage.setItem(
-            this.key,
-            JSON.stringify(data)
-        );
-
-        console.log("Game saved.");
-    },
-
-    loadGame() {
-
-        const raw =
-            localStorage.getItem(this.key);
-
-        if (!raw) {
-            console.log("No save found.");
-            return false;
-        }
-
         try {
 
-            const data = JSON.parse(raw);
+            const data = {
+                mission:
+                    typeof Missions !== "undefined"
+                        ? Missions.current
+                        : 0,
 
-            Missions.currentMission =
-                data.mission || 0;
+                health:
+                    typeof Player !== "undefined"
+                        ? Player.health
+                        : 100,
 
-            Player.health =
-                data.health ?? 100;
+                weapons:
+                    typeof Inventory !== "undefined"
+                        ? Inventory.getWeapons()
+                        : ["PISTOL"],
 
-            Inventory.weapons =
-                data.weapons || ["pistol"];
+                items:
+                    typeof Inventory !== "undefined"
+                        ? Inventory.getItems()
+                        : [],
 
-            Inventory.items =
-                data.items || [];
+                completed:
+                    typeof Missions !== "undefined"
+                        ? Missions.completed
+                        : []
+            };
 
-            UI.updateHealth(Player.health);
-            Missions.updateObjective();
+            localStorage.setItem(
+                this.key,
+                JSON.stringify(data)
+            );
 
-            console.log("Game loaded.");
+            console.log("GAME SAVED");
 
             return true;
 
         } catch (error) {
 
             console.error(
-                "Save data could not be loaded.",
+                "Save failed:",
+                error
+            );
+
+            return false;
+        }
+    },
+
+    loadGame() {
+
+        try {
+
+            const raw =
+                localStorage.getItem(
+                    this.key
+                );
+
+            if (!raw) {
+                console.log(
+                    "No saved game found."
+                );
+                return false;
+            }
+
+            const data =
+                JSON.parse(raw);
+
+            if (
+                typeof Missions !== "undefined"
+            ) {
+                Missions.current =
+                    data.mission || 0;
+
+                Missions.completed =
+                    Array.isArray(data.completed)
+                        ? data.completed
+                        : [];
+            }
+
+            if (
+                typeof Player !== "undefined"
+            ) {
+                Player.health =
+                    typeof data.health === "number"
+                        ? data.health
+                        : 100;
+            }
+
+            if (
+                typeof Inventory !== "undefined"
+            ) {
+
+                Inventory.weapons =
+                    Array.isArray(data.weapons)
+                        ? data.weapons
+                        : ["PISTOL"];
+
+                Inventory.items =
+                    Array.isArray(data.items)
+                        ? data.items
+                        : [];
+            }
+
+            if (
+                typeof UI !== "undefined"
+            ) {
+
+                UI.updateHealth(
+                    Player.health
+                );
+            }
+
+            console.log("GAME LOADED");
+
+            return true;
+
+        } catch (error) {
+
+            console.error(
+                "Load failed:",
                 error
             );
 
@@ -68,8 +137,21 @@ const Save = {
 
     deleteSave() {
 
-        localStorage.removeItem(this.key);
+        localStorage.removeItem(
+            this.key
+        );
 
-        console.log("Save deleted.");
+        console.log(
+            "SAVE DATA DELETED"
+        );
+    },
+
+    hasSave() {
+
+        return (
+            localStorage.getItem(
+                this.key
+            ) !== null
+        );
     }
 };
