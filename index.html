@@ -1,1 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
+    <title>PROJECT: BLACKOUT</title>
+
+    <link rel="stylesheet" href="css/game.css">
+</head>
+
+<body>
+
+    <!-- GAME CANVAS -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- GAME UI -->
+    <div id="gameUI">
+
+        <div id="topHUD">
+            <div id="health">HP: 100</div>
+            <div id="weapon">PISTOL</div>
+            <div id="ammo">12 / 60</div>
+        </div>
+
+        <div id="objective">
+            OBJECTIVE: INITIALIZING...
+        </div>
+
+        <div id="crosshair">+</div>
+
+        <button id="pauseButton">Ⅱ</button>
+
+        <div id="controls">
+
+            <div id="movementJoystick">
+                <div id="joystickStick"></div>
+            </div>
+
+            <div id="actionButtons">
+                <button id="shootButton">FIRE</button>
+                <button id="crouchButton">CROUCH</button>
+                <button id="weaponButton">WEAPONS</button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- GAME SCRIPTS -->
+    <script src="js/engine.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/weapons.js"></script>
+    <script src="js/enemies.js"></script>
+    <script src="js/vehicles.js"></script>
+    <script src="js/missions.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/save.js"></script>
+    <script src="js/main.js"></script>
+
+</body>
+</html>
