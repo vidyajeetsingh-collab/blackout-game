@@ -1,102 +1,140 @@
-
 // PROJECT: BLACKOUT
-// World System
+// World + City Area System
 
 const World = {
 
-    areas: [
-        {
-            id: "residential",
-            name: "RESIDENTIAL DISTRICT",
+    areas: {
+        RESIDENTIAL: {
+            name: "RESIDENTIAL",
             unlocked: true
         },
-        {
-            id: "downtown",
+
+        DOWNTOWN: {
             name: "DOWNTOWN",
             unlocked: false
         },
-        {
-            id: "industrial",
-            name: "INDUSTRIAL DISTRICT",
+
+        COMMERCIAL: {
+            name: "COMMERCIAL",
             unlocked: false
         },
-        {
-            id: "underground",
-            name: "UNDERGROUND COMPLEX",
+
+        INDUSTRIAL: {
+            name: "INDUSTRIAL",
+            unlocked: false
+        },
+
+        UNDERGROUND: {
+            name: "UNDERGROUND",
             unlocked: false
         }
-    ],
+    },
 
-    cars: [],
+    currentArea: "RESIDENTIAL",
 
     init() {
 
-        this.cars = [];
+        this.currentArea = "RESIDENTIAL";
 
-        // Initial abandoned/usable cars.
-        this.spawnCars();
+        this.areas.RESIDENTIAL.unlocked = true;
 
         console.log(
-            "BLACKOUT world initialized."
+            "World initialized."
         );
     },
 
-    spawnCars() {
+    updateArea(areaName) {
 
-        const positions = [
-            [-12, 0, -8],
-            [8, 0, -15],
-            [18, 0, 12],
-            [-20, 0, 18]
+        if (!this.areas[areaName]) {
+            return false;
+        }
+
+        if (!this.areas[areaName].unlocked) {
+            console.log(
+                "Area locked:",
+                areaName
+            );
+
+            return false;
+        }
+
+        this.currentArea = areaName;
+
+        console.log(
+            "Current area:",
+            areaName
+        );
+
+        return true;
+    },
+
+    unlockArea(areaName) {
+
+        if (!this.areas[areaName]) {
+            return;
+        }
+
+        this.areas[areaName].unlocked = true;
+
+        console.log(
+            "Area unlocked:",
+            areaName
+        );
+    },
+
+    unlockMissionArea(missionNumber) {
+
+        const order = [
+            "RESIDENTIAL",
+            "DOWNTOWN",
+            "COMMERCIAL",
+            "INDUSTRIAL",
+            "UNDERGROUND"
         ];
 
-        for (const position of positions) {
+        const index =
+            missionNumber - 1;
 
-            if (typeof Vehicles !== "undefined") {
-
-                const car = Vehicles.spawn(
-                    position[0],
-                    position[1],
-                    position[2]
-                );
-
-                this.cars.push(car);
-            }
+        if (
+            index >= 0 &&
+            index < order.length
+        ) {
+            this.unlockArea(
+                order[index]
+            );
         }
     },
 
-    unlockArea(id) {
+    isUnlocked(areaName) {
 
-        const area = this.areas.find(
-            item => item.id === id
+        return !!(
+            this.areas[areaName] &&
+            this.areas[areaName].unlocked
         );
-
-        if (area) {
-            area.unlocked = true;
-        }
     },
 
-    isAreaUnlocked(id) {
+    getCurrentArea() {
 
-        const area = this.areas.find(
-            item => item.id === id
-        );
-
-        return area
-            ? area.unlocked
-            : false;
+        return this.currentArea;
     },
 
-    update(deltaTime) {
+    getUnlockedAreas() {
 
-        // World streaming and 3D city
-        // generation will be added here.
+        return Object.values(
+            this.areas
+        ).filter(
+            area => area.unlocked
+        );
     },
 
     reset() {
 
-        this.cars = [];
+        for (const key in this.areas) {
+            this.areas[key].unlocked =
+                key === "RESIDENTIAL";
+        }
 
-        this.spawnCars();
+        this.currentArea =
+            "RESIDENTIAL";
     }
 };
