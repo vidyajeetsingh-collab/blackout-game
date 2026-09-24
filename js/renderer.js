@@ -1,28 +1,34 @@
 // PROJECT: BLACKOUT
-// 3D WebGL Renderer
+// WebGL 3D Renderer
 
 const Renderer = {
+
     gl: null,
+
     program: null,
 
     positionBuffer: null,
+
     colorBuffer: null,
 
-    positionLocation: null,
-    colorLocation: null,
+    aPosition: null,
+    aColor: null,
 
-    projectionLocation: null,
-    viewLocation: null,
+    uProjection: null,
+    uView: null,
+    uModel: null,
+
+    // =========================================
+    // INITIALIZE
+    // =========================================
 
     init() {
+
         this.gl = Engine.gl;
 
         if (!this.gl) {
-            console.error("Renderer: WebGL unavailable.");
-            return;
+            throw new Error("WebGL context not found.");
         }
-
-        const gl = this.gl;
 
         const vertexShaderSource = `
             attribute vec3 aPosition;
@@ -30,13 +36,16 @@ const Renderer = {
 
             uniform mat4 uProjection;
             uniform mat4 uView;
+            uniform mat4 uModel;
 
             varying vec3 vColor;
 
             void main() {
+
                 gl_Position =
                     uProjection *
                     uView *
+                    uModel *
                     vec4(aPosition, 1.0);
 
                 vColor = aColor;
@@ -49,26 +58,23 @@ const Renderer = {
             varying vec3 vColor;
 
             void main() {
-                gl_FragColor = vec4(vColor, 1.0);
+
+                gl_FragColor =
+                    vec4(vColor, 1.0);
             }
         `;
 
         const vertexShader =
             this.createShader(
-                gl.VERTEX_SHADER,
+                this.gl.VERTEX_SHADER,
                 vertexShaderSource
             );
 
         const fragmentShader =
             this.createShader(
-                gl.FRAGMENT_SHADER,
+                this.gl.FRAGMENT_SHADER,
                 fragmentShaderSource
             );
-
-        if (!vertexShader || !fragmentShader) {
-            console.error("Renderer: shader creation failed.");
-            return;
-        }
 
         this.program =
             this.createProgram(
@@ -76,126 +82,130 @@ const Renderer = {
                 fragmentShader
             );
 
-        if (!this.program) {
-            console.error("Renderer: program creation failed.");
-            return;
-        }
-
-        gl.useProgram(this.program);
-
-        this.positionLocation =
-            gl.getAttribLocation(
+        this.aPosition =
+            this.gl.getAttribLocation(
                 this.program,
                 "aPosition"
             );
 
-        this.colorLocation =
-            gl.getAttribLocation(
+        this.aColor =
+            this.gl.getAttribLocation(
                 this.program,
                 "aColor"
             );
 
-        this.projectionLocation =
-            gl.getUniformLocation(
+        this.uProjection =
+            this.gl.getUniformLocation(
                 this.program,
                 "uProjection"
             );
 
-        this.viewLocation =
-            gl.getUniformLocation(
+        this.uView =
+            this.gl.getUniformLocation(
                 this.program,
                 "uView"
             );
 
+        this.uModel =
+            this.gl.getUniformLocation(
+                this.program,
+                "uModel"
+            );
+
         this.positionBuffer =
-            gl.createBuffer();
+            this.gl.createBuffer();
 
         this.colorBuffer =
-            gl.createBuffer();
-
-        gl.enableVertexAttribArray(
-            this.positionLocation
-        );
-
-        gl.enableVertexAttribArray(
-            this.colorLocation
-        );
-
-        gl.enable(gl.DEPTH_TEST);
-        gl.depthFunc(gl.LEQUAL);
+            this.gl.createBuffer();
 
         console.log(
-            "PROJECT: BLACKOUT 3D renderer initialized."
+            "BLACKOUT Renderer initialized."
         );
     },
 
+    // =========================================
+    // SHADERS
+    // =========================================
+
     createShader(type, source) {
-        const gl = this.gl;
 
-        const shader = gl.createShader(type);
+        const shader =
+            this.gl.createShader(type);
 
-        gl.shaderSource(
+        this.gl.shaderSource(
             shader,
             source
         );
 
-        gl.compileShader(shader);
+        this.gl.compileShader(
+            shader
+        );
 
         if (
-            !gl.getShaderParameter(
+            !this.gl.getShaderParameter(
                 shader,
-                gl.COMPILE_STATUS
+                this.gl.COMPILE_STATUS
             )
         ) {
-            console.error(
-                "Shader error:",
-                gl.getShaderInfoLog(shader)
+
+            const error =
+                this.gl.getShaderInfoLog(
+                    shader
+                );
+
+            this.gl.deleteShader(shader);
+
+            throw new Error(
+                "Shader error: " + error
             );
-
-            gl.deleteShader(shader);
-
-            return null;
         }
 
         return shader;
     },
 
-    createProgram(vertexShader, fragmentShader) {
-        const gl = this.gl;
+    createProgram(
+        vertexShader,
+        fragmentShader
+    ) {
 
         const program =
-            gl.createProgram();
+            this.gl.createProgram();
 
-        gl.attachShader(
+        this.gl.attachShader(
             program,
             vertexShader
         );
 
-        gl.attachShader(
+        this.gl.attachShader(
             program,
             fragmentShader
         );
 
-        gl.linkProgram(program);
+        this.gl.linkProgram(
+            program
+        );
 
         if (
-            !gl.getProgramParameter(
+            !this.gl.getProgramParameter(
                 program,
-                gl.LINK_STATUS
+                this.gl.LINK_STATUS
             )
         ) {
-            console.error(
-                "Program error:",
-                gl.getProgramInfoLog(program)
+
+            throw new Error(
+                "Program link error: " +
+                this.gl.getProgramInfoLog(
+                    program
+                )
             );
-
-            gl.deleteProgram(program);
-
-            return null;
         }
 
         return program;
     },
+
+    // =========================================
+    // MATRIX FUNCTIONS
+    // =========================================
 
     perspective(
         fov,
@@ -203,17 +213,17 @@ const Renderer = {
         near,
         far
     ) {
+
         const f =
             1 /
-            Math.tan(
-                fov / 2
-            );
+            Math.tan(fov / 2);
 
         const nf =
             1 /
             (near - far);
 
         return new Float32Array([
+
             f / aspect, 0, 0, 0,
 
             0, f, 0, 0,
@@ -228,15 +238,20 @@ const Renderer = {
         ]);
     },
 
-    lookAt(eye, target, up) {
+    lookAt(
+        eye,
+        target,
+        up
+    ) {
+
         let zx =
-            eye.x - target.x;
+            eye[0] - target[0];
 
         let zy =
-            eye.y - target.y;
+            eye[1] - target[1];
 
         let zz =
-            eye.z - target.z;
+            eye[2] - target[2];
 
         let length =
             Math.hypot(
@@ -250,16 +265,16 @@ const Renderer = {
         zz /= length;
 
         let xx =
-            up.y * zz -
-            up.z * zy;
+            up[1] * zz -
+            up[2] * zy;
 
         let xy =
-            up.z * zx -
-            up.x * zz;
+            up[2] * zx -
+            up[0] * zz;
 
         let xz =
-            up.x * zy -
-            up.y * zx;
+            up[0] * zy -
+            up[1] * zx;
 
         length =
             Math.hypot(
@@ -285,240 +300,153 @@ const Renderer = {
             zy * xx;
 
         return new Float32Array([
+
             xx, yx, zx, 0,
             xy, yy, zy, 0,
             xz, yz, zz, 0,
 
             -(
-                xx * eye.x +
-                xy * eye.y +
-                xz * eye.z
+                xx * eye[0] +
+                xy * eye[1] +
+                xz * eye[2]
             ),
 
             -(
-                yx * eye.x +
-                yy * eye.y +
-                yz * eye.z
+                yx * eye[0] +
+                yy * eye[1] +
+                yz * eye[2]
             ),
 
             -(
-                zx * eye.x +
-                zy * eye.y +
-                zz * eye.z
+                zx * eye[0] +
+                zy * eye[1] +
+                zz * eye[2]
             ),
 
             1
         ]);
     },
 
-    cube(x, y, z, sx, sy, sz, color) {
-        const x1 = x - sx / 2;
-        const x2 = x + sx / 2;
+    // =========================================
+    // MODEL MATRIX
+    // =========================================
 
-        const y1 = y;
-        const y2 = y + sy;
+    modelMatrix(
+        x,
+        y,
+        z,
+        sx,
+        sy,
+        sz
+    ) {
 
-        const z1 = z - sz / 2;
-        const z2 = z + sz / 2;
+        return new Float32Array([
 
-        const vertices = [
+            sx, 0, 0, 0,
+            0, sy, 0, 0,
+            0, 0, sz, 0,
+
+            x, y, z, 1
+        ]);
+    },
+
+    // =========================================
+    // CUBE
+    // =========================================
+
+    cubeVertices() {
+
+        return [
+
             // Front
-            x1,y1,z2,  x2,y1,z2,  x2,y2,z2,
-            x1,y1,z2,  x2,y2,z2,  x1,y2,z2,
+            -0.5, -0.5,  0.5,
+             0.5, -0.5,  0.5,
+             0.5,  0.5,  0.5,
+
+            -0.5, -0.5,  0.5,
+             0.5,  0.5,  0.5,
+            -0.5,  0.5,  0.5,
 
             // Back
-            x2,y1,z1,  x1,y1,z1,  x1,y2,z1,
-            x2,y1,z1,  x1,y2,z1,  x2,y2,z1,
+             0.5, -0.5, -0.5,
+            -0.5, -0.5, -0.5,
+            -0.5,  0.5, -0.5,
+
+             0.5, -0.5, -0.5,
+            -0.5,  0.5, -0.5,
+             0.5,  0.5, -0.5,
 
             // Left
-            x1,y1,z1,  x1,y1,z2,  x1,y2,z2,
-            x1,y1,z1,  x1,y2,z2,  x1,y2,z1,
+            -0.5, -0.5, -0.5,
+            -0.5, -0.5,  0.5,
+            -0.5,  0.5,  0.5,
+
+            -0.5, -0.5, -0.5,
+            -0.5,  0.5,  0.5,
+            -0.5,  0.5, -0.5,
 
             // Right
-            x2,y1,z2,  x2,y1,z1,  x2,y2,z1,
-            x2,y1,z2,  x2,y2,z1,  x2,y2,z2,
+             0.5, -0.5,  0.5,
+             0.5, -0.5, -0.5,
+             0.5,  0.5, -0.5,
+
+             0.5, -0.5,  0.5,
+             0.5,  0.5, -0.5,
+             0.5,  0.5,  0.5,
 
             // Top
-            x1,y2,z2,  x2,y2,z2,  x2,y2,z1,
-            x1,y2,z2,  x2,y2,z1,  x1,y2,z1,
+            -0.5,  0.5,  0.5,
+             0.5,  0.5,  0.5,
+             0.5,  0.5, -0.5,
+
+            -0.5,  0.5,  0.5,
+             0.5,  0.5, -0.5,
+            -0.5,  0.5, -0.5,
 
             // Bottom
-            x1,y1,z1,  x2,y1,z1,  x2,y1,z2,
-            x1,y1,z1,  x2,y1,z2,  x1,y1,z2
+            -0.5, -0.5, -0.5,
+             0.5, -0.5, -0.5,
+             0.5, -0.5,  0.5,
+
+            -0.5, -0.5, -0.5,
+             0.5, -0.5,  0.5,
+            -0.5, -0.5,  0.5
         ];
+    },
+
+    // =========================================
+    // DRAW CUBE
+    // =========================================
+
+    drawCube(
+        x,
+        y,
+        z,
+        sx,
+        sy,
+        sz,
+        color
+    ) {
+
+        const gl = this.gl;
+
+        const vertices =
+            this.cubeVertices();
 
         const colors = [];
 
-        for (let i = 0; i < 36; i++) {
+        for (
+            let i = 0;
+            i < vertices.length / 3;
+            i++
+        ) {
+
             colors.push(
                 color[0],
                 color[1],
                 color[2]
             );
         }
-
-        return {
-            vertices,
-            colors
-        };
-    },
-
-    ground() {
-        return {
-            vertices: [
-                -50,0,-50,
-                 50,0,-50,
-                 50,0, 50,
-
-                -50,0,-50,
-                 50,0, 50,
-                -50,0, 50
-            ],
-
-            colors: [
-                0.08,0.10,0.12,
-                0.08,0.10,0.12,
-                0.08,0.10,0.12,
-
-                0.08,0.10,0.12,
-                0.08,0.10,0.12,
-                0.08,0.10,0.12
-            ]
-        };
-    },
-
-    render() {
-        const gl = this.gl;
-
-        if (!gl || !this.program) {
-            return;
-        }
-
-        Engine.resize();
-
-        gl.viewport(
-            0,
-            0,
-            gl.drawingBufferWidth,
-            gl.drawingBufferHeight
-        );
-
-        gl.clearColor(
-            0.025,
-            0.035,
-            0.055,
-            1
-        );
-
-        gl.clear(
-            gl.COLOR_BUFFER_BIT |
-            gl.DEPTH_BUFFER_BIT
-        );
-
-        gl.useProgram(
-            this.program
-        );
-
-        const projection =
-            this.perspective(
-                Math.PI / 3,
-                Engine.getAspectRatio(),
-                0.1,
-                150
-            );
-
-        const view =
-            this.lookAt(
-                Camera.position,
-                Camera.target,
-                {
-                    x: 0,
-                    y: 1,
-                    z: 0
-                }
-            );
-
-        gl.uniformMatrix4fv(
-            this.projectionLocation,
-            false,
-            projection
-        );
-
-        gl.uniformMatrix4fv(
-            this.viewLocation,
-            false,
-            view
-        );
-
-        const objects = [];
-
-        objects.push(
-            this.ground()
-        );
-
-        // City buildings
-        objects.push(
-            this.cube(
-                -10, 0, -12,
-                7, 8, 7,
-                [0.16,0.19,0.23]
-            )
-        );
-
-        objects.push(
-            this.cube(
-                10, 0, -15,
-                8, 11, 8,
-                [0.20,0.22,0.26]
-            )
-        );
-
-        objects.push(
-            this.cube(
-                -14, 0, 10,
-                9, 6, 8,
-                [0.14,0.17,0.20]
-            )
-        );
-
-        objects.push(
-            this.cube(
-                14, 0, 9,
-                7, 9, 7,
-                [0.18,0.20,0.24]
-            )
-        );
-
-        objects.push(
-            this.cube(
-                0, 0, -24,
-                12, 14, 8,
-                [0.12,0.15,0.19]
-            )
-        );
-
-        // Player marker
-        if (typeof Player !== "undefined") {
-            objects.push(
-                this.cube(
-                    Player.position.x,
-                    Player.position.y,
-                    Player.position.z,
-                    0.8,
-                    1.8,
-                    0.8,
-                    [0.05,0.65,0.85]
-                )
-            );
-        }
-
-        for (const object of objects) {
-            this.drawObject(object);
-        }
-    },
-
-    drawObject(object) {
-        const gl = this.gl;
 
         gl.bindBuffer(
             gl.ARRAY_BUFFER,
@@ -527,14 +455,16 @@ const Renderer = {
 
         gl.bufferData(
             gl.ARRAY_BUFFER,
-            new Float32Array(
-                object.vertices
-            ),
-            gl.DYNAMIC_DRAW
+            new Float32Array(vertices),
+            gl.STATIC_DRAW
+        );
+
+        gl.enableVertexAttribArray(
+            this.aPosition
         );
 
         gl.vertexAttribPointer(
-            this.positionLocation,
+            this.aPosition,
             3,
             gl.FLOAT,
             false,
@@ -549,14 +479,16 @@ const Renderer = {
 
         gl.bufferData(
             gl.ARRAY_BUFFER,
-            new Float32Array(
-                object.colors
-            ),
-            gl.DYNAMIC_DRAW
+            new Float32Array(colors),
+            gl.STATIC_DRAW
+        );
+
+        gl.enableVertexAttribArray(
+            this.aColor
         );
 
         gl.vertexAttribPointer(
-            this.colorLocation,
+            this.aColor,
             3,
             gl.FLOAT,
             false,
@@ -564,10 +496,220 @@ const Renderer = {
             0
         );
 
+        const model =
+            this.modelMatrix(
+                x,
+                y,
+                z,
+                sx,
+                sy,
+                sz
+            );
+
+        gl.uniformMatrix4fv(
+            this.uModel,
+            false,
+            model
+        );
+
         gl.drawArrays(
             gl.TRIANGLES,
             0,
-            object.vertices.length / 3
+            36
         );
+    },
+
+    // =========================================
+    // RENDER
+    // =========================================
+
+    render(
+        cameraPosition,
+        cameraTarget
+    ) {
+
+        const gl = this.gl;
+
+        if (!gl) {
+            return;
+        }
+
+        gl.useProgram(
+            this.program
+        );
+
+        gl.enable(
+            gl.DEPTH_TEST
+        );
+
+        gl.clearColor(
+            0.025,
+            0.04,
+            0.055,
+            1
+        );
+
+        gl.clear(
+            gl.COLOR_BUFFER_BIT |
+            gl.DEPTH_BUFFER_BIT
+        );
+
+        const aspect =
+            Engine.getAspectRatio();
+
+        const projection =
+            this.perspective(
+                Math.PI / 3,
+                aspect,
+                0.1,
+                200
+            );
+
+        const view =
+            this.lookAt(
+                [
+                    cameraPosition.x,
+                    cameraPosition.y,
+                    cameraPosition.z
+                ],
+                [
+                    cameraTarget.x,
+                    cameraTarget.y,
+                    cameraTarget.z
+                ],
+                [0, 1, 0]
+            );
+
+        gl.uniformMatrix4fv(
+            this.uProjection,
+            false,
+            projection
+        );
+
+        gl.uniformMatrix4fv(
+            this.uView,
+            false,
+            view
+        );
+
+        // =====================================
+        // GROUND
+        // =====================================
+
+        this.drawCube(
+            0,
+            -0.25,
+            0,
+            100,
+            0.5,
+            100,
+            [0.035, 0.05, 0.06]
+        );
+
+        // =====================================
+        // CITY BUILDINGS
+        // =====================================
+
+        const buildings = [
+
+            [-15, 4, -18, 10, 8, 10],
+            [12, 5, -20, 12, 10, 10],
+            [25, 3, -5, 8, 6, 12],
+            [-25, 6, 5, 10, 12, 10],
+            [18, 4, 18, 14, 8, 10],
+            [-12, 3, 22, 12, 6, 9]
+        ];
+
+        for (
+            const building of buildings
+        ) {
+
+            this.drawCube(
+                building[0],
+                building[2] / 0.0,
+                building[1],
+                building[3],
+                building[4],
+                building[5],
+                [0.12, 0.14, 0.17]
+            );
+        }
+
+        // =====================================
+        // PLAYER
+        // =====================================
+
+        if (
+            typeof Player !== "undefined"
+        ) {
+
+            this.drawCube(
+                Player.position.x,
+                1.0,
+                Player.position.z,
+                0.7,
+                2.0,
+                0.7,
+                [0.0, 0.65, 0.9]
+            );
+        }
+
+        // =====================================
+        // ENEMIES
+        // =====================================
+
+        if (
+            typeof Enemies !== "undefined" &&
+            typeof Enemies.getAliveEnemies === "function"
+        ) {
+
+            const enemies =
+                Enemies.getAliveEnemies();
+
+            for (
+                const enemy of enemies
+            ) {
+
+                // Enemy body
+                this.drawCube(
+                    enemy.x,
+                    1.0,
+                    enemy.z,
+                    0.8,
+                    2.0,
+                    0.8,
+                    [0.85, 0.08, 0.08]
+                );
+
+                // Enemy head
+                this.drawCube(
+                    enemy.x,
+                    2.25,
+                    enemy.z,
+                    0.55,
+                    0.55,
+                    0.55,
+                    [0.25, 0.03, 0.03]
+                );
+
+                // Health bar
+                const healthRatio =
+                    Math.max(
+                        0,
+                        enemy.health /
+                        enemy.maxHealth
+                    );
+
+                this.drawCube(
+                    enemy.x,
+                    2.75,
+                    enemy.z,
+                    1.0 * healthRatio,
+                    0.10,
+                    0.12,
+                    [0.1, 1.0, 0.2]
+                );
+            }
+        }
     }
 };
