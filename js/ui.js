@@ -3,122 +3,183 @@
 
 const UI = {
 
+    elements: {},
+
     init() {
 
-        this.healthElement =
+        this.elements.health =
             document.getElementById("health");
 
-        this.weaponElement =
+        this.elements.weapon =
             document.getElementById("weapon");
 
-        this.ammoElement =
+        this.elements.ammo =
             document.getElementById("ammo");
 
-        this.objectiveElement =
+        this.elements.objective =
             document.getElementById("objective");
 
         this.setupButtons();
 
         this.updateHealth(100);
 
-        console.log(
-            "BLACKOUT UI initialized."
+        this.updateWeapon(
+            "PISTOL",
+            12,
+            60
         );
+
+        this.updateObjective(
+            "MISSION 1: SURVIVE THE ENEMY ATTACK"
+        );
+
+        console.log("UI initialized.");
     },
 
     updateHealth(health) {
 
-        if (!this.healthElement) {
-            return;
-        }
+        if (!this.elements.health) return;
 
-        this.healthElement.textContent =
-            "HP: " + Math.max(0, health);
+        this.elements.health.textContent =
+            "HP: " + Math.max(0, Math.round(health));
     },
 
     updateWeapon(
         weaponName,
-        currentAmmo,
-        reserveAmmo
+        magazine,
+        reserve
     ) {
 
-        if (this.weaponElement) {
-
-            this.weaponElement.textContent =
+        if (this.elements.weapon) {
+            this.elements.weapon.textContent =
                 weaponName;
         }
 
-        if (this.ammoElement) {
-
-            this.ammoElement.textContent =
-                currentAmmo +
-                " / " +
-                reserveAmmo;
+        if (this.elements.ammo) {
+            this.elements.ammo.textContent =
+                magazine + " / " + reserve;
         }
     },
 
     updateObjective(text) {
 
-        if (!this.objectiveElement) {
-            return;
-        }
+        if (!this.elements.objective) return;
 
-        this.objectiveElement.textContent =
+        this.elements.objective.textContent =
             "OBJECTIVE: " + text;
     },
 
     setupButtons() {
 
-        const shoot =
-            document.getElementById(
-                "shootButton"
-            );
+        const shootButton =
+            document.getElementById("shootButton");
 
-        const crouch =
-            document.getElementById(
-                "crouchButton"
-            );
+        const crouchButton =
+            document.getElementById("crouchButton");
 
-        const weapon =
-            document.getElementById(
-                "weaponButton"
-            );
+        const weaponButton =
+            document.getElementById("weaponButton");
 
-        if (shoot) {
+        const pauseButton =
+            document.getElementById("pauseButton");
 
-            shoot.addEventListener(
+
+        if (shootButton) {
+
+            shootButton.addEventListener(
                 "pointerdown",
-                () => {
-                    Weapons.fire();
+                (event) => {
+
+                    event.preventDefault();
+
+                    if (
+                        typeof Weapons !== "undefined" &&
+                        typeof Weapons.fire === "function"
+                    ) {
+                        Weapons.fire();
+                    }
                 }
             );
         }
 
-        if (crouch) {
 
-            crouch.addEventListener(
+        if (crouchButton) {
+
+            crouchButton.addEventListener(
                 "pointerdown",
-                () => {
+                (event) => {
 
-                    Player.isCrouching =
-                        !Player.isCrouching;
+                    event.preventDefault();
 
-                    crouch.textContent =
-                        Player.isCrouching
-                            ? "STAND"
-                            : "CROUCH";
+                    if (
+                        typeof Player !== "undefined"
+                    ) {
+                        Player.isCrouching =
+                            !Player.isCrouching;
+
+                        crouchButton.textContent =
+                            Player.isCrouching
+                                ? "STAND"
+                                : "CROUCH";
+                    }
                 }
             );
         }
 
-        if (weapon) {
 
-            weapon.addEventListener(
+        if (weaponButton) {
+
+            weaponButton.addEventListener(
                 "pointerdown",
-                () => {
-                    Weapons.nextWeapon();
+                (event) => {
+
+                    event.preventDefault();
+
+                    if (
+                        typeof Weapons !== "undefined" &&
+                        typeof Weapons.nextWeapon === "function"
+                    ) {
+                        Weapons.nextWeapon();
+                    }
                 }
             );
+        }
+
+
+        if (pauseButton) {
+
+            pauseButton.addEventListener(
+                "pointerdown",
+                (event) => {
+
+                    event.preventDefault();
+
+                    this.togglePause();
+                }
+            );
+        }
+    },
+
+    paused: false,
+
+    togglePause() {
+
+        this.paused = !this.paused;
+
+        if (this.paused) {
+
+            console.log("GAME PAUSED");
+
+            if (
+                typeof Save !== "undefined" &&
+                typeof Save.saveGame === "function"
+            ) {
+                Save.saveGame();
+            }
+
+        } else {
+
+            console.log("GAME RESUMED");
         }
     }
 };
