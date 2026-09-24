@@ -8,7 +8,7 @@ const Game = {
 
     init() {
 
-        console.log("PROJECT: BLACKOUT starting...");
+        console.log("Starting PROJECT: BLACKOUT...");
 
         if (!Engine.init()) {
             return;
@@ -27,53 +27,106 @@ const Game = {
 
         Save.loadGame();
 
+        // Start the first mission if no save exists.
+        if (!Save.hasSave()) {
+            Missions.startMission(0);
+        } else {
+            Missions.updateObjective();
+        }
+
         this.running = true;
         this.lastTime = performance.now();
 
         requestAnimationFrame(
-            this.loop.bind(this)
+            (time) => this.loop(time)
         );
 
         console.log(
-            "PROJECT: BLACKOUT ready."
+            "PROJECT: BLACKOUT is running."
         );
     },
 
-    loop(timestamp) {
+    loop(time) {
 
         if (!this.running) {
             return;
         }
 
-        const deltaTime =
-            Math.min(
-                (timestamp - this.lastTime) / 1000,
-                0.05
-            );
+        let deltaTime =
+            (time - this.lastTime) / 1000;
 
-        this.lastTime = timestamp;
+        this.lastTime = time;
 
-        this.update(deltaTime);
-        this.render();
+        // Prevent huge jumps after tab/app switching.
+        deltaTime =
+            Math.min(deltaTime, 0.05);
+
+        if (
+            typeof UI === "undefined" ||
+            !UI.paused
+        ) {
+
+            this.update(deltaTime);
+            this.render();
+        }
 
         requestAnimationFrame(
-            this.loop.bind(this)
+            (nextTime) =>
+                this.loop(nextTime)
         );
     },
 
     update(deltaTime) {
 
         Player.update(deltaTime);
+
         Camera.update();
 
         Enemies.update(deltaTime);
+
         Vehicles.update(deltaTime);
+
         World.update(deltaTime);
+
+        this.checkMissionState();
     },
 
     render() {
 
-        Renderer.render();
+        Engine.clear();
+
+        Renderer.render(
+            Camera.position,
+            Camera.target
+        );
+    },
+
+    checkMissionState() {
+
+        if (!Missions.active) {
+            return;
+        }
+
+        const mission =
+            Missions.getCurrent();
+
+        if (!mission) {
+            return;
+        }
+
+        // Survival mission:
+        // complete when all enemies are destroyed.
+        if (
+            mission.objective ===
+            "SURVIVE THE ENEMY ATTACK"
+        ) {
+
+            if (
+                Enemies.getAliveCount() === 0
+            ) {
+                Missions.completeMission();
+            }
+        }
     }
 };
 
