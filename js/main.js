@@ -1,6 +1,3 @@
-// PROJECT: BLACKOUT
-// Main Game Controller
-
 const Game = {
 
     running: false,
@@ -8,56 +5,78 @@ const Game = {
 
     init() {
 
-        console.log("Starting PROJECT: BLACKOUT...");
+        console.log("1. GAME INIT");
 
         if (!Engine.init()) {
+            console.error("2. ENGINE FAILED");
             return;
         }
 
+        console.log("2. ENGINE OK");
+
         Renderer.init();
+
+        console.log("3. RENDERER INIT FINISHED");
+
         Player.init();
+
+        console.log("4. PLAYER OK");
+
         Camera.init();
+
+        console.log("5. CAMERA OK");
+
         Weapons.init();
+        console.log("6. WEAPONS OK");
+
         Enemies.init();
+        console.log("7. ENEMIES OK");
+
         Vehicles.init();
+        console.log("8. VEHICLES OK");
+
         Inventory.init();
+        console.log("9. INVENTORY OK");
+
         World.init();
+        console.log("10. WORLD OK");
+
         UI.init();
+        console.log("11. UI OK");
+
         Missions.init();
+        console.log("12. MISSIONS OK");
 
         Save.loadGame();
+        console.log("13. SAVE OK");
 
-        // Start the first mission if no save exists.
         if (!Save.hasSave()) {
             Missions.startMission(0);
         } else {
             Missions.updateObjective();
         }
 
+        console.log("14. MISSION OK");
+
         this.running = true;
         this.lastTime = performance.now();
 
+        console.log("15. STARTING GAME LOOP");
+
         requestAnimationFrame(
             (time) => this.loop(time)
-        );
-
-        console.log(
-            "PROJECT: BLACKOUT is running."
         );
     },
 
     loop(time) {
 
-        if (!this.running) {
-            return;
-        }
+        if (!this.running) return;
 
         let deltaTime =
             (time - this.lastTime) / 1000;
 
         this.lastTime = time;
 
-        // Prevent huge jumps after tab/app switching.
         deltaTime =
             Math.min(deltaTime, 0.05);
 
@@ -65,7 +84,6 @@ const Game = {
             typeof UI === "undefined" ||
             !UI.paused
         ) {
-
             this.update(deltaTime);
             this.render();
         }
@@ -79,13 +97,9 @@ const Game = {
     update(deltaTime) {
 
         Player.update(deltaTime);
-
         Camera.update();
-
         Enemies.update(deltaTime);
-
         Vehicles.update(deltaTime);
-
         World.update(deltaTime);
 
         this.checkMissionState();
@@ -103,19 +117,13 @@ const Game = {
 
     checkMissionState() {
 
-        if (!Missions.active) {
-            return;
-        }
+        if (!Missions.active) return;
 
         const mission =
             Missions.getCurrent();
 
-        if (!mission) {
-            return;
-        }
+        if (!mission) return;
 
-        // Survival mission:
-        // complete when all enemies are destroyed.
         if (
             mission.objective ===
             "SURVIVE THE ENEMY ATTACK"
