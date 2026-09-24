@@ -3,48 +3,54 @@
 
 const Missions = {
 
-    currentMission: 0,
+    current: 0,
 
-    missions: [
+    completed: [],
+
+    data: [
         {
             id: 1,
             name: "BLACKOUT",
-            area: "RESIDENTIAL DISTRICT",
+            area: "RESIDENTIAL",
             objective: "SURVIVE THE ENEMY ATTACK",
-            completed: false
+            reward: "ASSAULT RIFLE"
         },
         {
             id: 2,
             name: "DEAD SIGNAL",
             area: "DOWNTOWN",
             objective: "ESCAPE THE AREA",
-            completed: false
+            reward: "SMG"
         },
         {
             id: 3,
             name: "GHOST GRID",
-            area: "COMMERCIAL DISTRICT",
+            area: "COMMERCIAL",
             objective: "SURVIVE THE ENEMY ATTACK",
-            completed: false
+            reward: "SHOTGUN"
         },
         {
             id: 4,
             name: "IRON VEIL",
-            area: "INDUSTRIAL DISTRICT",
+            area: "INDUSTRIAL",
             objective: "ESCAPE THE AREA",
-            completed: false
+            reward: "SNIPER RIFLE"
         },
         {
             id: 5,
             name: "LAST TRANSMISSION",
-            area: "UNDERGROUND COMPLEX",
+            area: "UNDERGROUND",
             objective: "SURVIVE THE ENEMY ATTACK",
-            completed: false
+            reward: "PISTOL + AMMO"
         }
     ],
 
+    active: false,
+
     init() {
-        this.currentMission = 0;
+
+        this.current = 0;
+        this.active = false;
 
         console.log(
             "Mission system initialized."
@@ -54,74 +60,79 @@ const Missions = {
     },
 
     getCurrent() {
-        return this.missions[
-            this.currentMission
-        ];
+
+        return this.data[this.current];
     },
 
-    startMission(index) {
+    startMission(index = 0) {
 
         if (
             index < 0 ||
-            index >= this.missions.length
+            index >= this.data.length
         ) {
             return;
         }
 
-        this.currentMission = index;
+        this.current = index;
+        this.active = true;
 
-        const mission = this.getCurrent();
+        const mission =
+            this.getCurrent();
 
         console.log(
-            "Starting Mission " +
-            mission.id +
-            ": " +
+            "Starting mission:",
             mission.name
         );
 
-        this.updateObjective();
-
-        if (typeof Enemies !== "undefined") {
-            Enemies.clear();
+        if (
+            typeof Player !== "undefined"
+        ) {
+            Player.reset();
         }
 
-        this.spawnMissionEnemies();
-    },
-
-    spawnMissionEnemies() {
-
-        if (typeof Enemies === "undefined") {
-            return;
-        }
-
-        const count =
-            3 + this.currentMission * 2;
-
-        for (let i = 0; i < count; i++) {
-
-            const type =
-                i % 2 === 0
-                    ? "surveillanceDrone"
-                    : "combatDrone";
-
-            Enemies.spawn(
-                type,
-                (Math.random() - 0.5) * 40,
-                3 + Math.random() * 8,
-                (Math.random() - 0.5) * 40
+        if (
+            typeof Enemies !== "undefined"
+        ) {
+            Enemies.spawnMissionEnemies(
+                mission.id
             );
         }
+
+        if (
+            typeof Vehicles !== "undefined"
+        ) {
+            Vehicles.spawnCityVehicles();
+        }
+
+        if (
+            typeof World !== "undefined" &&
+            typeof World.updateArea === "function"
+        ) {
+            World.updateArea(
+                mission.area
+            );
+        }
+
+        this.updateObjective();
     },
 
     updateObjective() {
 
-        const mission = this.getCurrent();
+        const mission =
+            this.getCurrent();
+
+        if (!mission) {
+            return;
+        }
 
         if (
-            mission &&
-            typeof UI !== "undefined"
+            typeof UI !== "undefined" &&
+            typeof UI.updateObjective === "function"
         ) {
             UI.updateObjective(
+                "MISSION " +
+                mission.id +
+                ": " +
                 mission.objective
             );
         }
@@ -129,32 +140,149 @@ const Missions = {
 
     completeMission() {
 
-        const mission = this.getCurrent();
-
-        if (!mission) {
+        if (!this.active) {
             return;
         }
 
-        mission.completed = true;
+        const mission =
+            this.getCurrent();
+
+        if (
+            !this.completed.includes(
+                mission.id
+            )
+        ) {
+            this.completed.push(
+                mission.id
+            );
+        }
+
+        this.active = false;
+
+        this.giveReward();
 
         console.log(
             "MISSION COMPLETE:",
             mission.name
         );
 
-        Save.saveGame();
+        if (
+            typeof Save !== "undefined" &&
+            typeof Save.saveGame === "function"
+        ) {
+            Save.saveGame();
+        }
+    },
+
+    giveReward() {
+
+        const mission =
+            this.getCurrent();
+
+        if (!mission) {
+            return;
+        }
+
+        if (
+            typeof Inventory === "undefined"
+        ) {
+            return;
+        }
+
+        const rewards = {
+            1: "ASSAULT RIFLE",
+            2: "SMG",
+            3: "SHOTGUN",
+            4: "SNIPER RIFLE",
+            5: "PISTOL"
+        };
+
+        const weaponName =
+            rewards[mission.id];
+
+        if (
+            typeof Inventory.addWeapon ===
+            "function"
+        ) {
+            Inventory.addWeapon(
+                weaponName
+            );
+        }
+
+        if (
+            typeof Weapons !== "undefined" &&
+            typeof Weapons.addAmmo ===
+            "function"
+        ) {
+            Weapons.addAmmo(30);
+        }
+
+        if (
+            typeof Player !== "undefined" &&
+            typeof Player.heal === "function"
+        ) {
+            Player.heal(25);
+        }
     },
 
     playerDied() {
 
         console.log(
-            "MISSION FAILED — RESTARTING"
+            "PLAYER DIED — RESTARTING MISSION"
         );
 
-        // The complete restart system
-        // will be connected later.
+        this.active = false;
+
+        this.restartMission();
+    },
+
+    restartMission() {
+
+        const missionIndex =
+            this.current;
+
         this.startMission(
-            this.currentMission
+            missionIndex
         );
+    },
+
+    nextMission() {
+
+        if (
+            this.current >=
+            this.data.length - 1
+        ) {
+            console.log(
+                "CAMPAIGN COMPLETE"
+            );
+
+            this.active = false;
+            return;
+        }
+
+        this.startMission(
+            this.current + 1
+        );
+    },
+
+    isCompleted(index) {
+
+        const mission =
+            this.data[index];
+
+        if (!mission) {
+            return false;
+        }
+
+        return this.completed.includes(
+            mission.id
+        );
+    },
+
+    resetProgress() {
+
+        this.current = 0;
+        this.completed = [];
+        this.active = false;
     }
 };
