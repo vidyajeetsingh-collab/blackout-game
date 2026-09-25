@@ -229,7 +229,46 @@ const Renderer = {
 
         return shader;
     },
+    // Read the current graphics settings.
+    getGraphicsSettings() {
+        const settings =
+            typeof Settings !== "undefined" &&
+            Settings.values
+                ? Settings.values
+                : {};
 
+        const performance = Boolean(
+            settings.performance
+        );
+
+        let quality = settings.graphics || "medium";
+
+        if (performance) {
+            quality = "low";
+        }
+
+        const presets = {
+            low: {
+                renderDistance: 65,
+                worldProps: false,
+                details: false
+            },
+
+            medium: {
+                renderDistance: 100,
+                worldProps: true,
+                details: false
+            },
+
+            high: {
+                renderDistance: 150,
+                worldProps: true,
+                details: true
+            }
+        };
+
+        return presets[quality] || presets.medium;
+    },
     render(
         cameraPosition,
         cameraTarget
@@ -256,13 +295,15 @@ const Renderer = {
          * Camera matrices
          */
 
-        const projection =
-            this.createPerspective(
-                Math.PI / 3,
-                Engine.getAspectRatio(),
-                0.1,
-                150
-            );
+       const graphics = this.getGraphicsSettings();
+
+const projection =
+    this.createPerspective(
+        Math.PI / 3,
+        Engine.getAspectRatio(),
+        0.1,
+        graphics.renderDistance
+    );
 
         const view =
             this.createLookAt(
@@ -297,21 +338,23 @@ const Renderer = {
 
         this.drawGround();
 
-        this.drawRoads();
+this.drawRoads();
 
-        this.drawBuildings();
+this.drawBuildings();
 
-        this.drawWorldProps();
+if (graphics.worldProps) {
+    this.drawWorldProps();
+}
 
-        this.drawMissionPoints();
+this.drawMissionPoints();
 
-        this.drawVehicles();
+this.drawVehicles();
 
-        this.drawPickups();
+this.drawPickups();
 
-        this.drawEnemies();
+this.drawEnemies();
 
-        this.drawPlayer();
+this.drawPlayer();
 
         /*
          * Upload geometry
