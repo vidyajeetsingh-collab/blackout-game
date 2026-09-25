@@ -42,6 +42,7 @@ const Player = {
 
         this.setupJoystick();
         this.setupCrouch();
+        this.setupRun();
 
         console.log(
             "Player initialized."
@@ -277,6 +278,36 @@ const Player = {
             }
         );
     },
+setupRun() {
+
+    const runButton =
+        document.getElementById("runButton");
+
+    if (!runButton) {
+        console.error("Run button not found.");
+        return;
+    }
+
+    runButton.addEventListener(
+        "pointerdown",
+        (event) => {
+
+            event.preventDefault();
+
+            this.isRunning = !this.isRunning;
+
+            runButton.textContent =
+                this.isRunning
+                    ? "WALK"
+                    : "RUN";
+
+            runButton.style.opacity =
+                this.isRunning
+                    ? "0.65"
+                    : "1";
+        }
+    );
+},
 
     damage(amount) {
 
