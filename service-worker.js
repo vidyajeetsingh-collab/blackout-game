@@ -1,9 +1,10 @@
-const CACHE_NAME = "blackout-cache-v1";
+const CACHE_NAME = "blackout-cache-v2";
 
 const APP_FILES = [
   "./",
   "./index.html",
   "./manifest.json",
+"./assets/images/blackout-icon.svg",
   "./css/game.css",
   "./js/main.js",
   "./js/engine.js",
