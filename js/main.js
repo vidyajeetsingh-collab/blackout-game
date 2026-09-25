@@ -103,12 +103,18 @@ const Game = {
         );
 
         Vehicles.update(
-            deltaTime
-        );
+    deltaTime
+);
 
-        World.update(
-            deltaTime
-        );
+Inventory.update(
+    deltaTime
+);
+
+World.update(
+    deltaTime
+);
+
+UI.updateStatus();
 
         /*
          * Check every mission objective.
