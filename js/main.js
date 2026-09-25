@@ -1,26 +1,24 @@
-// PROJECT: BLACKOUT
-// Main Game Controller
 
 const Game = {
-
     running: false,
     lastTime: 0,
 
     init() {
+        console.log("Starting PROJECT: BLACKOUT...");
 
-        console.log(
-            "Starting PROJECT: BLACKOUT..."
-        );
-
+        // Initialize the WebGL engine.
         if (!Engine.init()) {
+            console.error("BLACKOUT engine initialization failed.");
             return;
         }
 
         Renderer.init();
 
+        // Initialize player and camera.
         Player.init();
         Camera.init();
 
+        // Initialize gameplay systems.
         Weapons.init();
         Enemies.init();
         Vehicles.init();
@@ -28,58 +26,71 @@ const Game = {
         Save.init();
         World.init();
         UI.init();
-        Menu.init();
-Menu.element.addEventListener("blackout:menu-action", event => {
-    const action = event.detail.action;
-
-    if (action === "new") {
-        if (typeof Save !== "undefined") {
-            Save.resetSave();
-        }
-
-        Missions.startMission(0);
-        Menu.hide();
-    }
-
-    if (action === "continue") {
-        const loaded = Save.loadGame();
-
-        if (loaded) {
-            Menu.hide();
-        } else {
-            Menu.setStatus("NO SAVED GAME FOUND");
-        }
-    }
-});
         Missions.init();
 
-        Save.loadGame();
+        // Create and display the main menu.
+        Menu.init();
 
-        if (!Save.hasSave()) {
+        // Keep gameplay paused while the menu is open.
+        UI.paused = true;
 
-            Missions.startMission(0);
+        // Connect the main menu buttons.
+        Menu.element.addEventListener(
+            "blackout:menu-action",
+            (event) => {
+                const action = event.detail.action;
 
-        } else {
+                // Start a completely new game.
+                if (action === "new") {
+                    Save.resetSave();
 
-            Missions.updateObjective();
-        }
+                    Missions.startMission(0);
 
+                    Menu.hide();
+                    UI.paused = false;
+
+                    console.log("NEW GAME STARTED.");
+                }
+
+                // Continue from a saved game.
+                if (action === "continue") {
+                    const loaded = Save.loadGame();
+
+                    if (loaded) {
+                        Missions.updateObjective();
+
+                        Menu.hide();
+                        UI.paused = false;
+
+                        console.log("CONTINUING SAVED GAME.");
+                    } else {
+                        Menu.setStatus("NO SAVED GAME FOUND");
+                    }
+                }
+
+                // These options will be connected later.
+                if (action === "missions") {
+                    Menu.setStatus("CAMPAIGN MENU COMING SOON");
+                }
+
+                if (action === "settings") {
+                    Menu.setStatus("SETTINGS COMING SOON");
+                }
+            }
+        );
+
+        // Start the game loop.
         this.running = true;
-
-        this.lastTime =
-            performance.now();
+        this.lastTime = performance.now();
 
         requestAnimationFrame(
             (time) => this.loop(time)
         );
 
-        console.log(
-            "PROJECT: BLACKOUT is running."
-        );
+        console.log("PROJECT: BLACKOUT is running.");
     },
 
     loop(time) {
-
         if (!this.running) {
             return;
         }
@@ -89,73 +100,48 @@ Menu.element.addEventListener("blackout:menu-action", event => {
 
         this.lastTime = time;
 
-        deltaTime =
-            Math.min(
-                deltaTime,
-                0.05
-            );
+        deltaTime = Math.min(deltaTime, 0.05);
 
+        // Do not update or render gameplay while paused.
         if (
             typeof UI === "undefined" ||
             !UI.paused
         ) {
-
-            this.update(
-                deltaTime
-            );
-
+            this.update(deltaTime);
             this.render();
         }
 
         requestAnimationFrame(
-            (nextTime) =>
-                this.loop(nextTime)
+            (nextTime) => this.loop(nextTime)
         );
     },
 
     update(deltaTime) {
-
-        Player.update(
-            deltaTime
-        );
+        Player.update(deltaTime);
 
         Camera.update();
 
-        Enemies.update(
-            deltaTime
-        );
+        Enemies.update(deltaTime);
 
-        Vehicles.update(
-    deltaTime
-);
+        Vehicles.update(deltaTime);
 
-Inventory.update(
-    deltaTime
-);
+        Inventory.update(deltaTime);
 
-World.update(
-    deltaTime
-);
+        World.update(deltaTime);
 
-UI.updateStatus();
+        UI.updateStatus();
 
-        /*
-         * Check every mission objective.
-         */
+        // Check active mission objectives.
         if (
-            typeof Missions !==
-                "undefined" &&
+            typeof Missions !== "undefined" &&
             Missions.active &&
-            typeof Missions.checkObjective ===
-                "function"
+            typeof Missions.checkObjective === "function"
         ) {
-
             Missions.checkObjective();
         }
     },
 
     render() {
-
         Engine.clear();
 
         Renderer.render(
@@ -165,34 +151,22 @@ UI.updateStatus();
     },
 
     pause() {
-
-        if (
-            typeof UI !== "undefined"
-        ) {
-
+        if (typeof UI !== "undefined") {
             UI.paused = true;
         }
     },
 
     resume() {
-
-        if (
-            typeof UI !== "undefined"
-        ) {
-
+        if (typeof UI !== "undefined") {
             UI.paused = false;
         }
     },
 
     restartMission() {
-
         if (
-            typeof Missions !==
-                "undefined" &&
-            typeof Missions.startMission ===
-                "function"
+            typeof Missions !== "undefined" &&
+            typeof Missions.startMission === "function"
         ) {
-
             Missions.startMission(
                 Missions.currentMission
             );
@@ -200,11 +174,8 @@ UI.updateStatus();
     }
 };
 
-window.addEventListener(
-    "load",
-    () => {
 
-        Game.init();
-
-    }
-);
+// Start the game after the page has loaded.
+window.addEventListener("load", () => {
+    Game.init();
+});
