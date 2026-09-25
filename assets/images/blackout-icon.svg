@@ -1,0 +1,39 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101f35"/>
+      <stop offset="100%" stop-color="#030711"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8dfcff"/>
+      <stop offset="100%" stop-color="#00a6ff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+
+  <path d="M80 170 L150 65 L222 112 L290 112 L362 65 L432 170
+           L405 345 L330 430 L256 390 L182 430 L107 345 Z"
+        fill="#172b40" stroke="#00cfff" stroke-width="9"
+        stroke-linejoin="round"/>
+
+  <path d="M112 190 L220 218 L190 278 L130 310 Z"
+        fill="url(#cyan)"/>
+  <path d="M400 190 L292 218 L322 278 L382 310 Z"
+        fill="url(#cyan)"/>
+
+  <path d="M220 218 L256 248 L292 218 L278 300
+           L256 330 L234 300 Z"
+        fill="#07111f" stroke="#00cfff" stroke-width="7"
+        stroke-linejoin="round"/>
+
+  <path d="M155 350 L210 370 L256 350 L302 370 L357 350
+           L330 405 L256 380 L182 405 Z"
+        fill="#00bfff"/>
+
+  <path d="M80 170 L150 65 L222 112
+           M432 170 L362 65 L290 112"
+        fill="none" stroke="#8dfcff" stroke-width="8"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
