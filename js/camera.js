@@ -1,5 +1,8 @@
+// =========================================
 // PROJECT: BLACKOUT
 // Third-Person Camera + Mobile Swipe
+// Settings Sensitivity Integration
+// =========================================
 
 const Camera = {
 
@@ -21,6 +24,7 @@ const Camera = {
     yaw: 0,
     pitch: -0.15,
 
+    // Original camera sensitivity.
     sensitivity: 0.006,
 
     touch: {
@@ -37,6 +41,33 @@ const Camera = {
         console.log(
             "Third-person camera initialized."
         );
+    },
+
+    // Get sensitivity from the Settings menu.
+    // 50% = original camera speed.
+    getSensitivity() {
+
+        if (
+            typeof Settings !== "undefined" &&
+            Settings.values &&
+            Number.isFinite(
+                Number(Settings.values.sensitivity)
+            )
+        ) {
+
+            const setting = Math.max(
+                10,
+                Math.min(
+                    100,
+                    Number(Settings.values.sensitivity)
+                )
+            );
+
+            return this.sensitivity * (setting / 50);
+        }
+
+        // Safe fallback if settings aren't available.
+        return this.sensitivity;
     },
 
     followPlayer() {
@@ -66,17 +97,19 @@ const Camera = {
 
     rotate(deltaX, deltaY) {
 
+        const sensitivity =
+            this.getSensitivity();
+
         this.yaw -=
-            deltaX * this.sensitivity;
+            deltaX * sensitivity;
 
         this.pitch -=
-            deltaY * this.sensitivity;
+            deltaY * sensitivity;
 
-        this.pitch =
-            Math.max(
-                -0.9,
-                Math.min(0.5, this.pitch)
-            );
+        this.pitch = Math.max(
+            -0.9,
+            Math.min(0.5, this.pitch)
+        );
 
         this.followPlayer();
     },
@@ -84,9 +117,7 @@ const Camera = {
     setupTouchCamera() {
 
         const canvas =
-            document.getElementById(
-                "gameCanvas"
-            );
+            document.getElementById("gameCanvas");
 
         if (!canvas) return;
 
@@ -115,8 +146,7 @@ const Camera = {
 
                 active = true;
 
-                pointerId =
-                    event.pointerId;
+                pointerId = event.pointerId;
 
                 lastX = event.clientX;
                 lastY = event.clientY;
@@ -154,7 +184,15 @@ const Camera = {
             }
         );
 
-        const stopTouch = () => {
+        const stopTouch = (event) => {
+
+            if (
+                pointerId !== null &&
+                event.pointerId !== undefined &&
+                event.pointerId !== pointerId
+            ) {
+                return;
+            }
 
             active = false;
             pointerId = null;
