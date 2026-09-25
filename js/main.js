@@ -26,6 +26,7 @@ const Game = {
         Save.init();
         World.init();
         UI.init();
+        Settings.init();
         Missions.init();
 
         // Create and display the main menu.
