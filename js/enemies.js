@@ -5,7 +5,6 @@ const Enemies = {
 
     enemies: [],
 
-    spawnDistance: 18,
     attackDistance: 2.2,
 
     init() {
@@ -14,9 +13,7 @@ const Enemies = {
 
         this.spawnEnemies();
 
-        console.log(
-            "Enemy system initialized."
-        );
+        console.log("Enemy system initialized.");
     },
 
     spawnEnemies() {
@@ -29,43 +26,46 @@ const Enemies = {
             { x: 25, z: -18 }
         ];
 
-        positions.forEach(
-            (position, index) => {
+        positions.forEach((position, index) => {
 
-                this.enemies.push({
+            this.enemies.push({
 
-                    id: index,
+                id: index,
 
-                    type: index % 2 === 0
+                type:
+                    index % 2 === 0
                         ? "COMBAT DRONE"
                         : "ENEMY",
 
-                    x: position.x,
-                    y: 0,
-                    z: position.z,
+                x: position.x,
+                y: 0,
+                z: position.z,
 
-                    health: index % 2 === 0
+                health:
+                    index % 2 === 0
                         ? 80
                         : 100,
 
-                    maxHealth: index % 2 === 0
+                maxHealth:
+                    index % 2 === 0
                         ? 80
                         : 100,
 
-                    speed: index % 2 === 0
+                speed:
+                    index % 2 === 0
                         ? 1.8
                         : 1.2,
 
-                    damage: index % 2 === 0
+                damage:
+                    index % 2 === 0
                         ? 8
                         : 10,
 
-                    attackCooldown: 0,
+                attackCooldown: 0,
 
-                    alive: true
-                });
-            }
-        );
+                alive: true
+            });
+        });
     },
 
     update(deltaTime) {
@@ -84,29 +84,21 @@ const Enemies = {
                 continue;
             }
 
-            if (
-                enemy.attackCooldown > 0
-            ) {
-
-                enemy.attackCooldown -=
-                    deltaTime;
+            if (enemy.attackCooldown > 0) {
+                enemy.attackCooldown -= deltaTime;
             }
 
             const dx =
-                Player.position.x -
-                enemy.x;
+                Player.position.x - enemy.x;
 
             const dz =
-                Player.position.z -
-                enemy.z;
+                Player.position.z - enemy.z;
 
             const distance =
                 Math.hypot(dx, dz);
 
-            // Move toward player
             if (
-                distance > this.attackDistance &&
-                distance < this.spawnDistance + 30
+                distance > this.attackDistance
             ) {
 
                 const length =
@@ -123,10 +115,8 @@ const Enemies = {
                     deltaTime;
             }
 
-            // Attack player
             if (
-                distance <=
-                this.attackDistance
+                distance <= this.attackDistance
             ) {
 
                 if (
@@ -144,17 +134,45 @@ const Enemies = {
         }
     },
 
+    // =========================================
+    // HIT ENEMY IN PLAYER'S AIM DIRECTION
+    // =========================================
+
     hitTarget(damage) {
 
         if (
-            !Player ||
-            !Player.position
+            typeof Player === "undefined" ||
+            typeof Camera === "undefined"
         ) {
             return;
         }
 
-        let closest = null;
-        let closestDistance = Infinity;
+        let bestEnemy = null;
+        let bestScore = Infinity;
+
+        // Camera direction
+        const dx =
+            Camera.target.x -
+            Camera.position.x;
+
+        const dz =
+            Camera.target.z -
+            Camera.position.z;
+
+        const directionLength =
+            Math.hypot(dx, dz);
+
+        if (
+            directionLength < 0.001
+        ) {
+            return;
+        }
+
+        const dirX =
+            dx / directionLength;
+
+        const dirZ =
+            dz / directionLength;
 
         for (
             const enemy of this.enemies
@@ -164,50 +182,87 @@ const Enemies = {
                 continue;
             }
 
-            const dx =
+            const toEnemyX =
                 enemy.x -
-                Player.position.x;
+                Camera.position.x;
 
-            const dz =
+            const toEnemyZ =
                 enemy.z -
-                Player.position.z;
+                Camera.position.z;
 
             const distance =
-                Math.hypot(dx, dz);
+                Math.hypot(
+                    toEnemyX,
+                    toEnemyZ
+                );
+
+            // Weapon range
+            if (distance > 45) {
+                continue;
+            }
+
+            const enemyLength =
+                Math.max(distance, 0.001);
+
+            const enemyDirX =
+                toEnemyX /
+                enemyLength;
+
+            const enemyDirZ =
+                toEnemyZ /
+                enemyLength;
+
+            // Dot product tells us whether
+            // the enemy is in front of us.
+            const dot =
+                dirX * enemyDirX +
+                dirZ * enemyDirZ;
+
+            // About 25 degrees aiming tolerance
+            if (dot < 0.90) {
+                continue;
+            }
+
+            // Prefer the closest enemy
+            // that is actually in the aim direction.
+            const score =
+                distance -
+                dot * 5;
 
             if (
-                distance < closestDistance
+                score < bestScore
             ) {
 
-                closestDistance =
-                    distance;
-
-                closest = enemy;
+                bestScore = score;
+                bestEnemy = enemy;
             }
         }
 
-        // Only hit an enemy within
-        // reasonable weapon range.
+        if (!bestEnemy) {
+            return;
+        }
+
+        bestEnemy.health -= damage;
+
+        console.log(
+            "HIT ENEMY:",
+            bestEnemy.id,
+            "DAMAGE:",
+            damage
+        );
+
         if (
-            closest &&
-            closestDistance <= 35
+            bestEnemy.health <= 0
         ) {
 
-            closest.health -= damage;
+            bestEnemy.health = 0;
 
-            if (
-                closest.health <= 0
-            ) {
+            bestEnemy.alive = false;
 
-                closest.health = 0;
-
-                closest.alive = false;
-
-                console.log(
-                    "ENEMY ELIMINATED:",
-                    closest.id
-                );
-            }
+            console.log(
+                "ENEMY ELIMINATED:",
+                bestEnemy.id
+            );
         }
     },
 
