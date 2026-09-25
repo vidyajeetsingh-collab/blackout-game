@@ -9,5 +9,12 @@
   "background_color": "#050914",
   "theme_color": "#07111f",
   "categories": ["games"],
-  "icons": []
+  "icons": [
+    {
+      "src": "./assets/images/blackout-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }
