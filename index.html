@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#07111f">
+<meta name="mobile-web-app-capable" content="yes">
     <meta charset="UTF-8">
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -63,6 +66,18 @@
     <script src="js/ui.js"></script>
     <script src="js/save.js"></script>
     <script src="js/main.js"></script>
-
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js")
+        .then(() => {
+          console.log("BLACKOUT service worker registered");
+        })
+        .catch(error => {
+          console.error("Service worker registration failed:", error);
+        });
+    });
+  }
+</script>
 </body>
 </html>
