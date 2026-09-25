@@ -73,10 +73,9 @@ const Game = {
                     Menu.setStatus("CAMPAIGN MENU COMING SOON");
                 }
 
-                if (action === "settings") {
-                    Menu.setStatus("SETTINGS COMING SOON");
-                }
-            }
+               if (action === "settings") {
+    Settings.open();
+}
         );
 
         // Start the game loop.
