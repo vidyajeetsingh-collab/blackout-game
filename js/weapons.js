@@ -1,5 +1,6 @@
 // PROJECT: BLACKOUT
 // Weapon System
+// Weapon Switching + Firing + Reloading
 
 const Weapons = {
 
@@ -10,7 +11,8 @@ const Weapons = {
             magazine: 12,
             ammo: 60,
             maxMagazine: 12,
-            fireRate: 400
+            fireRate: 400,
+            automatic: false
         },
         {
             name: "SMG",
@@ -18,7 +20,8 @@ const Weapons = {
             magazine: 30,
             ammo: 120,
             maxMagazine: 30,
-            fireRate: 110
+            fireRate: 110,
+            automatic: true
         },
         {
             name: "ASSAULT RIFLE",
@@ -26,7 +29,8 @@ const Weapons = {
             magazine: 30,
             ammo: 120,
             maxMagazine: 30,
-            fireRate: 140
+            fireRate: 140,
+            automatic: true
         },
         {
             name: "SHOTGUN",
@@ -34,7 +38,8 @@ const Weapons = {
             magazine: 6,
             ammo: 36,
             maxMagazine: 6,
-            fireRate: 750
+            fireRate: 750,
+            automatic: false
         },
         {
             name: "SNIPER RIFLE",
@@ -42,26 +47,43 @@ const Weapons = {
             magazine: 5,
             ammo: 25,
             maxMagazine: 5,
-            fireRate: 1000
+            fireRate: 1000,
+            automatic: false
         }
     ],
 
     currentIndex: 0,
+
     lastShot: 0,
+
     reloading: false,
 
+    firing: false,
+
+    fireTimer: null,
+
+    reloadTimer: null,
+
+    reloadDuration: 1200,
+
+    initialized: false,
+
     init() {
+
+        this.stopFiring();
+        this.cancelReload();
 
         this.currentIndex = 0;
         this.lastShot = 0;
         this.reloading = false;
 
+        this.setupControls();
         this.updateUI();
 
-        this.setupControls();
+        this.initialized = true;
 
         console.log(
-            "Weapon system initialized."
+            "BLACKOUT Weapon System initialized."
         );
     },
 
@@ -74,8 +96,12 @@ const Weapons = {
 
     fire() {
 
-        if (this.reloading) {
-            return;
+        if (
+            !this.initialized ||
+            this.reloading ||
+            this.isGamePaused()
+        ) {
+            return false;
         }
 
         const weapon =
@@ -88,57 +114,121 @@ const Weapons = {
             now - this.lastShot <
             weapon.fireRate
         ) {
-            return;
+            return false;
         }
 
         if (weapon.magazine <= 0) {
 
-            this.reload();
+            if (weapon.ammo > 0) {
+                this.reload();
+            } else {
+                this.showMessage("OUT OF AMMO");
+            }
 
-            return;
+            return false;
         }
 
         this.lastShot = now;
 
         weapon.magazine--;
 
-        console.log(
-            "FIRE:",
-            weapon.name
-        );
+        let hit = false;
 
-        // Try to damage an enemy in front
-        // if the enemy system supports it.
         if (
             typeof Enemies !== "undefined" &&
             typeof Enemies.hitTarget === "function"
         ) {
 
-            Enemies.hitTarget(
-                weapon.damage
-            );
+            const result =
+                Enemies.hitTarget(
+                    weapon.damage
+                );
+
+            hit = result === true;
         }
 
         this.updateUI();
 
-        // Automatic reload
+        this.showFireFeedback(hit);
+
         if (
             weapon.magazine <= 0 &&
             weapon.ammo > 0
         ) {
 
-            setTimeout(
-                () => this.reload(),
-                250
+            this.stopFiring();
+
+            this.reload();
+        }
+
+        return true;
+    },
+
+    startFiring() {
+
+        if (this.firing) {
+            return;
+        }
+
+        if (this.isGamePaused()) {
+            return;
+        }
+
+        this.firing = true;
+
+        const weapon =
+            this.getCurrent();
+
+        this.fire();
+
+        if (!weapon.automatic) {
+            return;
+        }
+
+        this.fireTimer =
+            setInterval(
+                () => {
+
+                    if (
+                        !this.firing ||
+                        this.isGamePaused()
+                    ) {
+
+                        this.stopFiring();
+                        return;
+                    }
+
+                    this.fire();
+
+                },
+                35
             );
+    },
+
+    stopFiring() {
+
+        this.firing = false;
+
+        if (this.fireTimer !== null) {
+
+            clearInterval(
+                this.fireTimer
+            );
+
+            this.fireTimer = null;
         }
     },
 
     reload() {
 
-        if (this.reloading) {
+        if (
+            !this.initialized ||
+            this.reloading
+        ) {
             return;
         }
+
+        this.stopFiring();
 
         const weapon =
             this.getCurrent();
@@ -151,6 +241,9 @@ const Weapons = {
         }
 
         if (weapon.ammo <= 0) {
+
+            this.showMessage("NO AMMO");
+
             return;
         }
 
@@ -158,32 +251,58 @@ const Weapons = {
 
         this.updateUI();
 
-        setTimeout(() => {
+        this.showMessage("RELOADING...");
 
-            const needed =
-                weapon.maxMagazine -
-                weapon.magazine;
+        this.reloadTimer =
+            setTimeout(
+                () => {
 
-            const available =
-                Math.min(
-                    needed,
-                    weapon.ammo
-                );
+                    const needed =
+                        weapon.maxMagazine -
+                        weapon.magazine;
 
-            weapon.magazine +=
-                available;
+                    const available =
+                        Math.min(
+                            needed,
+                            weapon.ammo
+                        );
 
-            weapon.ammo -=
-                available;
+                    weapon.magazine +=
+                        available;
 
-            this.reloading = false;
+                    weapon.ammo -=
+                        available;
 
-            this.updateUI();
+                    this.reloading = false;
+                    this.reloadTimer = null;
 
-        }, 900);
+                    this.updateUI();
+
+                    this.showMessage("RELOADED");
+
+                },
+                this.reloadDuration
+            );
+    },
+
+    cancelReload() {
+
+        if (this.reloadTimer !== null) {
+
+            clearTimeout(
+                this.reloadTimer
+            );
+
+            this.reloadTimer = null;
+        }
+
+        this.reloading = false;
     },
 
     nextWeapon() {
+
+        this.stopFiring();
+        this.cancelReload();
 
         this.currentIndex++;
 
@@ -191,28 +310,54 @@ const Weapons = {
             this.currentIndex >=
             this.weapons.length
         ) {
-
             this.currentIndex = 0;
         }
 
-        this.reloading = false;
+        this.lastShot = 0;
 
         this.updateUI();
+
+        this.showMessage(
+            this.getCurrent().name
+        );
     },
 
     previousWeapon() {
 
+        this.stopFiring();
+        this.cancelReload();
+
         this.currentIndex--;
 
-        if (
-            this.currentIndex < 0
-        ) {
+        if (this.currentIndex < 0) {
 
             this.currentIndex =
                 this.weapons.length - 1;
         }
 
-        this.reloading = false;
+        this.lastShot = 0;
+
+        this.updateUI();
+
+        this.showMessage(
+            this.getCurrent().name
+        );
+    },
+
+    selectWeapon(index) {
+
+        if (
+            index < 0 ||
+            index >= this.weapons.length
+        ) {
+            return;
+        }
+
+        this.stopFiring();
+        this.cancelReload();
+
+        this.currentIndex = index;
+        this.lastShot = 0;
 
         this.updateUI();
     },
@@ -223,14 +368,10 @@ const Weapons = {
             this.getCurrent();
 
         const weaponElement =
-            document.getElementById(
-                "weapon"
-            );
+            document.getElementById("weapon");
 
         const ammoElement =
-            document.getElementById(
-                "ammo"
-            );
+            document.getElementById("ammo");
 
         if (weaponElement) {
 
@@ -252,6 +393,19 @@ const Weapons = {
                     " / " +
                     weapon.ammo;
             }
+        }
+
+        const reloadButton =
+            document.getElementById(
+                "reloadButton"
+            );
+
+        if (reloadButton) {
+
+            reloadButton.textContent =
+                this.reloading
+                    ? "RELOADING"
+                    : "RELOAD";
         }
     },
 
@@ -275,8 +429,37 @@ const Weapons = {
 
                     event.preventDefault();
 
-                    this.fire();
+                    this.startFiring();
                 }
+            );
+
+            const stop = () => {
+                this.stopFiring();
+            };
+
+            fireButton.addEventListener(
+                "pointerup",
+                stop
+            );
+
+            fireButton.addEventListener(
+                "pointercancel",
+                stop
+            );
+
+            fireButton.addEventListener(
+                "lostpointercapture",
+                stop
+            );
+
+            window.addEventListener(
+                "pointerup",
+                stop
+            );
+
+            window.addEventListener(
+                "blur",
+                stop
             );
         }
 
@@ -292,6 +475,145 @@ const Weapons = {
                 }
             );
         }
+
+        this.createReloadButton();
+
+        window.addEventListener(
+            "keydown",
+            (event) => {
+
+                if (
+                    event.repeat ||
+                    this.isGamePaused()
+                ) {
+                    return;
+                }
+
+                if (
+                    event.key.toLowerCase() === "r"
+                ) {
+
+                    this.reload();
+
+                } else if (
+                    event.key === "1"
+                ) {
+
+                    this.selectWeapon(0);
+
+                } else if (
+                    event.key === "2"
+                ) {
+
+                    this.selectWeapon(1);
+
+                } else if (
+                    event.key === "3"
+                ) {
+
+                    this.selectWeapon(2);
+
+                } else if (
+                    event.key === "4"
+                ) {
+
+                    this.selectWeapon(3);
+
+                } else if (
+                    event.key === "5"
+                ) {
+
+                    this.selectWeapon(4);
+                }
+            }
+        );
+    },
+
+    createReloadButton() {
+
+        const controls =
+            document.getElementById(
+                "actionButtons"
+            );
+
+        if (
+            !controls ||
+            document.getElementById(
+                "reloadButton"
+            )
+        ) {
+            return;
+        }
+
+        const button =
+            document.createElement("button");
+
+        button.id = "reloadButton";
+        button.textContent = "RELOAD";
+
+        controls.appendChild(button);
+
+        button.addEventListener(
+            "pointerdown",
+            (event) => {
+
+                event.preventDefault();
+
+                this.reload();
+            }
+        );
+    },
+
+    showFireFeedback(hit) {
+
+        const crosshair =
+            document.getElementById(
+                "crosshair"
+            );
+
+        if (!crosshair) {
+            return;
+        }
+
+        crosshair.textContent =
+            hit ? "×" : "+";
+
+        crosshair.style.color =
+            hit ? "#ff5555" : "#ffffff";
+
+        if (this.crosshairTimer) {
+            clearTimeout(this.crosshairTimer);
+        }
+
+        this.crosshairTimer =
+            setTimeout(
+                () => {
+
+                    crosshair.textContent = "+";
+                    crosshair.style.color = "#ffffff";
+
+                },
+                120
+            );
+    },
+
+    showMessage(message) {
+
+        if (
+            typeof UI !== "undefined" &&
+            typeof UI.showMessage === "function"
+        ) {
+
+            UI.showMessage(message);
+        }
+    },
+
+    isGamePaused() {
+
+        return (
+            typeof UI !== "undefined" &&
+            UI.paused === true
+        );
     },
 
     addAmmo(amount) {
@@ -299,23 +621,34 @@ const Weapons = {
         const weapon =
             this.getCurrent();
 
-        weapon.ammo += amount;
+        weapon.ammo +=
+            Math.max(0, amount);
 
         this.updateUI();
     },
 
     reset() {
 
+        this.stopFiring();
+        this.cancelReload();
+
         this.currentIndex = 0;
-        this.reloading = false;
+        this.lastShot = 0;
 
-        for (
-            const weapon of this.weapons
-        ) {
+        this.weapons[0].magazine = 12;
+        this.weapons[0].ammo = 60;
 
-            weapon.magazine =
-                weapon.maxMagazine;
-        }
+        this.weapons[1].magazine = 30;
+        this.weapons[1].ammo = 120;
+
+        this.weapons[2].magazine = 30;
+        this.weapons[2].ammo = 120;
+
+        this.weapons[3].magazine = 6;
+        this.weapons[3].ammo = 36;
+
+        this.weapons[4].magazine = 5;
+        this.weapons[4].ammo = 25;
 
         this.updateUI();
     }
