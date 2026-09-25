@@ -1,5 +1,6 @@
 // PROJECT: BLACKOUT
-// Player + Mobile Movement System
+// Player System
+// Camera-Relative Movement + Mobile Controls
 
 const Player = {
 
@@ -29,27 +30,56 @@ const Player = {
         y: 0
     },
 
+    initialized: false,
+
     init() {
 
-        this.position.x = 0;
-        this.position.y = 0;
-        this.position.z = 0;
+        this.position = {
+            x: 0,
+            y: 0,
+            z: 0
+        };
+
+        this.rotation = {
+            x: 0,
+            y: 0
+        };
 
         this.health = 100;
 
         this.isRunning = false;
         this.isCrouching = false;
 
+        this.joystick = {
+            active: false,
+            x: 0,
+            y: 0
+        };
+
         this.setupJoystick();
         this.setupCrouch();
         this.setupRun();
 
+        this.initialized = true;
+
         console.log(
-            "Player initialized."
+            "BLACKOUT Player initialized."
         );
     },
 
     update(deltaTime) {
+
+        if (!this.initialized) {
+            return;
+        }
+
+        // Vehicle driving is handled by Vehicles.
+        if (
+            typeof Vehicles !== "undefined" &&
+            Vehicles.isDriving()
+        ) {
+            return;
+        }
 
         let speed = this.speed;
 
@@ -61,40 +91,72 @@ const Player = {
             speed = this.crouchSpeed;
         }
 
-        const moveX =
-            this.joystick.x;
+        const inputX = this.joystick.x;
+        const inputY = this.joystick.y;
 
-        const moveZ =
-            this.joystick.y;
+        // No movement input.
+        if (
+            Math.abs(inputX) < 0.01 &&
+            Math.abs(inputY) < 0.01
+        ) {
+            return;
+        }
+
+        // Camera yaw determines movement direction.
+        const yaw =
+            typeof Camera !== "undefined"
+                ? Camera.yaw
+                : 0;
+
+        // Camera-relative forward and right vectors.
+        const forwardX = Math.sin(yaw);
+        const forwardZ = -Math.cos(yaw);
+
+        const rightX = Math.cos(yaw);
+        const rightZ = Math.sin(yaw);
+
+        // Joystick up means forward.
+        const forwardInput = -inputY;
+
+        let moveX =
+            rightX * inputX +
+            forwardX * forwardInput;
+
+        let moveZ =
+            rightZ * inputX +
+            forwardZ * forwardInput;
+
+        // Normalize diagonal movement.
+        const magnitude =
+            Math.hypot(moveX, moveZ);
+
+        if (magnitude > 1) {
+            moveX /= magnitude;
+            moveZ /= magnitude;
+        }
 
         this.position.x +=
-            moveX *
-            speed *
-            deltaTime;
+            moveX * speed * deltaTime;
 
         this.position.z +=
-            moveZ *
-            speed *
-            deltaTime;
+            moveZ * speed * deltaTime;
 
-        // Keep player inside current world.
+        // Keep the player inside the current world bounds.
         this.position.x =
             Math.max(
-                -45,
-                Math.min(
-                    45,
-                    this.position.x
-                )
+                -43,
+                Math.min(43, this.position.x)
             );
 
         this.position.z =
             Math.max(
-                -45,
-                Math.min(
-                    45,
-                    this.position.z
-                )
+                -43,
+                Math.min(43, this.position.z)
             );
+
+        // Face the direction of movement.
+        this.rotation.y =
+            Math.atan2(moveX, moveZ);
     },
 
     setupJoystick() {
@@ -110,75 +172,62 @@ const Player = {
             );
 
         if (!joystick || !stick) {
-
             console.error(
-                "Joystick not found."
+                "BLACKOUT: Joystick elements not found."
             );
-
             return;
         }
 
         let pointerId = null;
 
-        const updateJoystick =
-            (event) => {
+        const updateJoystick = (event) => {
 
-                const rect =
-                    joystick.getBoundingClientRect();
+            const rect =
+                joystick.getBoundingClientRect();
 
-                const centerX =
-                    rect.left +
-                    rect.width / 2;
+            const centerX =
+                rect.left + rect.width / 2;
 
-                const centerY =
-                    rect.top +
-                    rect.height / 2;
+            const centerY =
+                rect.top + rect.height / 2;
 
-                let dx =
-                    event.clientX -
-                    centerX;
+            let dx =
+                event.clientX - centerX;
 
-                let dy =
-                    event.clientY -
-                    centerY;
+            let dy =
+                event.clientY - centerY;
 
-                const maxDistance =
-                    rect.width * 0.30;
+            const maxDistance =
+                rect.width * 0.30;
 
-                const distance =
-                    Math.hypot(
-                        dx,
-                        dy
-                    );
+            const distance =
+                Math.hypot(dx, dy);
 
-                if (
-                    distance > maxDistance
-                ) {
+            if (distance > maxDistance) {
 
-                    dx =
-                        (dx / distance) *
-                        maxDistance;
+                dx =
+                    (dx / distance) *
+                    maxDistance;
 
-                    dy =
-                        (dy / distance) *
-                        maxDistance;
-                }
+                dy =
+                    (dy / distance) *
+                    maxDistance;
+            }
 
-                stick.style.left =
-                    `calc(50% + ${dx}px)`;
+            stick.style.left =
+                `calc(50% + ${dx}px)`;
 
-                stick.style.top =
-                    `calc(50% + ${dy}px)`;
+            stick.style.top =
+                `calc(50% + ${dy}px)`;
 
-                this.joystick.x =
-                    dx / maxDistance;
+            this.joystick.x =
+                dx / maxDistance;
 
-                this.joystick.y =
-                    dy / maxDistance;
+            this.joystick.y =
+                dy / maxDistance;
 
-                this.joystick.active =
-                    true;
-            };
+            this.joystick.active = true;
+        };
 
         joystick.addEventListener(
             "pointerdown",
@@ -202,12 +251,13 @@ const Player = {
             (event) => {
 
                 if (
-                    this.joystick.active &&
-                    event.pointerId === pointerId
+                    !this.joystick.active ||
+                    event.pointerId !== pointerId
                 ) {
-
-                    updateJoystick(event);
+                    return;
                 }
+
+                updateJoystick(event);
             }
         );
 
@@ -215,9 +265,7 @@ const Player = {
 
             pointerId = null;
 
-            this.joystick.active =
-                false;
-
+            this.joystick.active = false;
             this.joystick.x = 0;
             this.joystick.y = 0;
 
@@ -243,21 +291,19 @@ const Player = {
 
     setupCrouch() {
 
-        const crouchButton =
+        const button =
             document.getElementById(
                 "crouchButton"
             );
 
-        if (!crouchButton) {
-
+        if (!button) {
             console.error(
-                "Crouch button not found."
+                "BLACKOUT: Crouch button not found."
             );
-
             return;
         }
 
-        crouchButton.addEventListener(
+        button.addEventListener(
             "pointerdown",
             (event) => {
 
@@ -266,35 +312,61 @@ const Player = {
                 this.isCrouching =
                     !this.isCrouching;
 
-                crouchButton.textContent =
-                    this.isCrouching
-                        ? "STAND"
-                        : "CROUCH";
+                // Crouching cancels running.
+                if (this.isCrouching) {
+                    this.isRunning = false;
+                }
 
-                crouchButton.style.opacity =
-                    this.isCrouching
-                        ? "0.65"
-                        : "1";
+                this.updateMovementButtons();
             }
         );
     },
-setupRun() {
 
-    const runButton =
-        document.getElementById("runButton");
+    setupRun() {
 
-    if (!runButton) {
-        console.error("Run button not found.");
-        return;
-    }
+        const button =
+            document.getElementById(
+                "runButton"
+            );
 
-    runButton.addEventListener(
-        "pointerdown",
-        (event) => {
+        if (!button) {
+            console.error(
+                "BLACKOUT: Run button not found."
+            );
+            return;
+        }
 
-            event.preventDefault();
+        button.addEventListener(
+            "pointerdown",
+            (event) => {
 
-            this.isRunning = !this.isRunning;
+                event.preventDefault();
+
+                if (this.isCrouching) {
+                    this.isCrouching = false;
+                }
+
+                this.isRunning =
+                    !this.isRunning;
+
+                this.updateMovementButtons();
+            }
+        );
+    },
+
+    updateMovementButtons() {
+
+        const runButton =
+            document.getElementById(
+                "runButton"
+            );
+
+        const crouchButton =
+            document.getElementById(
+                "crouchButton"
+            );
+
+        if (runButton) {
 
             runButton.textContent =
                 this.isRunning
@@ -306,65 +378,69 @@ setupRun() {
                     ? "0.65"
                     : "1";
         }
-    );
-},
+
+        if (crouchButton) {
+
+            crouchButton.textContent =
+                this.isCrouching
+                    ? "STAND"
+                    : "CROUCH";
+
+            crouchButton.style.opacity =
+                this.isCrouching
+                    ? "0.65"
+                    : "1";
+        }
+    },
 
     damage(amount) {
 
-        this.health -= amount;
-
-        if (this.health < 0) {
-            this.health = 0;
+        if (this.health <= 0) {
+            return;
         }
+
+        this.health =
+            Math.max(
+                0,
+                this.health - amount
+            );
 
         if (
             typeof UI !== "undefined" &&
             typeof UI.updateHealth === "function"
         ) {
-
-            UI.updateHealth(
-                this.health
-            );
+            UI.updateHealth(this.health);
         }
 
-        if (
-            this.health <= 0
-        ) {
-
+        if (this.health <= 0) {
             this.die();
         }
     },
 
     heal(amount) {
 
-        this.health += amount;
-
-        if (this.health > 100) {
-            this.health = 100;
-        }
+        this.health =
+            Math.min(
+                100,
+                this.health + amount
+            );
 
         if (
             typeof UI !== "undefined" &&
             typeof UI.updateHealth === "function"
         ) {
-
-            UI.updateHealth(
-                this.health
-            );
+            UI.updateHealth(this.health);
         }
     },
 
     die() {
 
-        console.log(
-            "PLAYER DOWN"
-        );
+        console.log("PLAYER DOWN");
 
         if (
             typeof Missions !== "undefined" &&
             typeof Missions.playerDied === "function"
         ) {
-
             Missions.playerDied();
         }
     },
@@ -383,31 +459,17 @@ setupRun() {
         this.isRunning = false;
         this.isCrouching = false;
 
+        this.joystick.active = false;
         this.joystick.x = 0;
         this.joystick.y = 0;
 
-        const crouchButton =
-            document.getElementById(
-                "crouchButton"
-            );
-
-        if (crouchButton) {
-
-            crouchButton.textContent =
-                "CROUCH";
-
-            crouchButton.style.opacity =
-                "1";
-        }
+        this.updateMovementButtons();
 
         if (
             typeof UI !== "undefined" &&
             typeof UI.updateHealth === "function"
         ) {
-
-            UI.updateHealth(
-                this.health
-            );
+            UI.updateHealth(this.health);
         }
     }
 };
