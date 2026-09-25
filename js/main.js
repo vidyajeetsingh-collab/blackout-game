@@ -25,6 +25,7 @@ const Game = {
         Enemies.init();
         Vehicles.init();
         Inventory.init();
+        Save.init();
         World.init();
         UI.init();
         Missions.init();
