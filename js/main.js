@@ -8,47 +8,29 @@ const Game = {
 
     init() {
 
-        console.log("Starting PROJECT: BLACKOUT...");
+        console.log(
+            "Starting PROJECT: BLACKOUT..."
+        );
 
-        // ENGINE
         if (!Engine.init()) {
             return;
         }
 
-        // RENDERER
         Renderer.init();
 
-        // PLAYER
         Player.init();
-
-        // CAMERA
         Camera.init();
 
-        // WEAPONS
         Weapons.init();
-
-        // ENEMIES
         Enemies.init();
-
-        // VEHICLES
         Vehicles.init();
-
-        // INVENTORY
         Inventory.init();
-
-        // WORLD
         World.init();
-
-        // UI
         UI.init();
-
-        // MISSIONS
         Missions.init();
 
-        // SAVE
         Save.loadGame();
 
-        // START / LOAD MISSION
         if (!Save.hasSave()) {
 
             Missions.startMission(0);
@@ -58,7 +40,6 @@ const Game = {
             Missions.updateObjective();
         }
 
-        // START GAME LOOP
         this.running = true;
 
         this.lastTime =
@@ -84,15 +65,12 @@ const Game = {
 
         this.lastTime = time;
 
-        // Prevent huge jumps after
-        // tab switching or lag.
         deltaTime =
             Math.min(
                 deltaTime,
                 0.05
             );
 
-        // Don't update the game while paused.
         if (
             typeof UI === "undefined" ||
             !UI.paused
@@ -131,7 +109,19 @@ const Game = {
             deltaTime
         );
 
-        this.checkMissionState();
+        /*
+         * Check every mission objective.
+         */
+        if (
+            typeof Missions !==
+                "undefined" &&
+            Missions.active &&
+            typeof Missions.checkObjective ===
+                "function"
+        ) {
+
+            Missions.checkObjective();
+        }
     },
 
     render() {
@@ -144,39 +134,47 @@ const Game = {
         );
     },
 
-    checkMissionState() {
-
-        if (!Missions.active) {
-            return;
-        }
-
-        const mission =
-            Missions.getCurrent();
-
-        if (!mission) {
-            return;
-        }
+    pause() {
 
         if (
-            mission.objective ===
-            "SURVIVE THE ENEMY ATTACK"
+            typeof UI !== "undefined"
         ) {
 
-            if (
-                Enemies.getAliveCount() === 0
-            ) {
+            UI.paused = true;
+        }
+    },
 
-                Missions.completeMission();
-            }
+    resume() {
+
+        if (
+            typeof UI !== "undefined"
+        ) {
+
+            UI.paused = false;
+        }
+    },
+
+    restartMission() {
+
+        if (
+            typeof Missions !==
+                "undefined" &&
+            typeof Missions.startMission ===
+                "function"
+        ) {
+
+            Missions.startMission(
+                Missions.currentMission
+            );
         }
     }
 };
 
-
-// Start game after page loads
 window.addEventListener(
     "load",
     () => {
+
         Game.init();
+
     }
 );
