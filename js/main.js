@@ -29,6 +29,28 @@ const Game = {
         World.init();
         UI.init();
         Menu.init();
+Menu.element.addEventListener("blackout:menu-action", event => {
+    const action = event.detail.action;
+
+    if (action === "new") {
+        if (typeof Save !== "undefined") {
+            Save.resetSave();
+        }
+
+        Missions.startMission(0);
+        Menu.hide();
+    }
+
+    if (action === "continue") {
+        const loaded = Save.loadGame();
+
+        if (loaded) {
+            Menu.hide();
+        } else {
+            Menu.setStatus("NO SAVED GAME FOUND");
+        }
+    }
+});
         Missions.init();
 
         Save.loadGame();
