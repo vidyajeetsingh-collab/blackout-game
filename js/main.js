@@ -28,6 +28,7 @@ const Game = {
         Save.init();
         World.init();
         UI.init();
+        Menu.init();
         Missions.init();
 
         Save.loadGame();
