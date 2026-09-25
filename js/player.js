@@ -37,9 +37,15 @@ const Player = {
 
         this.health = 100;
 
-        this.setupJoystick();
+        this.isRunning = false;
+        this.isCrouching = false;
 
-        console.log("Player initialized.");
+        this.setupJoystick();
+        this.setupCrouch();
+
+        console.log(
+            "Player initialized."
+        );
     },
 
     update(deltaTime) {
@@ -54,22 +60,40 @@ const Player = {
             speed = this.crouchSpeed;
         }
 
-        // Mobile joystick movement
-        const moveX = this.joystick.x;
-        const moveZ = this.joystick.y;
+        const moveX =
+            this.joystick.x;
+
+        const moveZ =
+            this.joystick.y;
 
         this.position.x +=
-            moveX * speed * deltaTime;
+            moveX *
+            speed *
+            deltaTime;
 
         this.position.z +=
-            moveZ * speed * deltaTime;
+            moveZ *
+            speed *
+            deltaTime;
 
-        // Keep player inside the current test area
+        // Keep player inside current world.
         this.position.x =
-            Math.max(-45, Math.min(45, this.position.x));
+            Math.max(
+                -45,
+                Math.min(
+                    45,
+                    this.position.x
+                )
+            );
 
         this.position.z =
-            Math.max(-45, Math.min(45, this.position.z));
+            Math.max(
+                -45,
+                Math.min(
+                    45,
+                    this.position.z
+                )
+            );
     },
 
     setupJoystick() {
@@ -85,64 +109,81 @@ const Player = {
             );
 
         if (!joystick || !stick) {
-            console.error("Joystick not found.");
+
+            console.error(
+                "Joystick not found."
+            );
+
             return;
         }
 
         let pointerId = null;
 
-        const updateJoystick = (event) => {
+        const updateJoystick =
+            (event) => {
 
-            const rect =
-                joystick.getBoundingClientRect();
+                const rect =
+                    joystick.getBoundingClientRect();
 
-            const centerX =
-                rect.left + rect.width / 2;
+                const centerX =
+                    rect.left +
+                    rect.width / 2;
 
-            const centerY =
-                rect.top + rect.height / 2;
+                const centerY =
+                    rect.top +
+                    rect.height / 2;
 
-            let dx =
-                event.clientX - centerX;
+                let dx =
+                    event.clientX -
+                    centerX;
 
-            let dy =
-                event.clientY - centerY;
+                let dy =
+                    event.clientY -
+                    centerY;
 
-            const maxDistance =
-                rect.width * 0.30;
+                const maxDistance =
+                    rect.width * 0.30;
 
-            const distance =
-                Math.hypot(dx, dy);
+                const distance =
+                    Math.hypot(
+                        dx,
+                        dy
+                    );
 
-            if (distance > maxDistance) {
+                if (
+                    distance > maxDistance
+                ) {
 
-                dx =
-                    (dx / distance) *
-                    maxDistance;
+                    dx =
+                        (dx / distance) *
+                        maxDistance;
 
-                dy =
-                    (dy / distance) *
-                    maxDistance;
-            }
+                    dy =
+                        (dy / distance) *
+                        maxDistance;
+                }
 
-            stick.style.left =
-                `calc(50% + ${dx}px)`;
+                stick.style.left =
+                    `calc(50% + ${dx}px)`;
 
-            stick.style.top =
-                `calc(50% + ${dy}px)`;
+                stick.style.top =
+                    `calc(50% + ${dy}px)`;
 
-            this.joystick.x =
-                dx / maxDistance;
+                this.joystick.x =
+                    dx / maxDistance;
 
-            this.joystick.y =
-                dy / maxDistance;
+                this.joystick.y =
+                    dy / maxDistance;
 
-            this.joystick.active = true;
-        };
+                this.joystick.active =
+                    true;
+            };
 
         joystick.addEventListener(
             "pointerdown",
             (event) => {
+
+                event.preventDefault();
 
                 pointerId =
                     event.pointerId;
@@ -163,6 +204,7 @@ const Player = {
                     this.joystick.active &&
                     event.pointerId === pointerId
                 ) {
+
                     updateJoystick(event);
                 }
             }
@@ -172,7 +214,8 @@ const Player = {
 
             pointerId = null;
 
-            this.joystick.active = false;
+            this.joystick.active =
+                false;
 
             this.joystick.x = 0;
             this.joystick.y = 0;
@@ -197,6 +240,44 @@ const Player = {
         );
     },
 
+    setupCrouch() {
+
+        const crouchButton =
+            document.getElementById(
+                "crouchButton"
+            );
+
+        if (!crouchButton) {
+
+            console.error(
+                "Crouch button not found."
+            );
+
+            return;
+        }
+
+        crouchButton.addEventListener(
+            "pointerdown",
+            (event) => {
+
+                event.preventDefault();
+
+                this.isCrouching =
+                    !this.isCrouching;
+
+                crouchButton.textContent =
+                    this.isCrouching
+                        ? "STAND"
+                        : "CROUCH";
+
+                crouchButton.style.opacity =
+                    this.isCrouching
+                        ? "0.65"
+                        : "1";
+            }
+        );
+    },
+
     damage(amount) {
 
         this.health -= amount;
@@ -205,9 +286,20 @@ const Player = {
             this.health = 0;
         }
 
-        UI.updateHealth(this.health);
+        if (
+            typeof UI !== "undefined" &&
+            typeof UI.updateHealth === "function"
+        ) {
 
-        if (this.health <= 0) {
+            UI.updateHealth(
+                this.health
+            );
+        }
+
+        if (
+            this.health <= 0
+        ) {
+
             this.die();
         }
     },
@@ -220,16 +312,28 @@ const Player = {
             this.health = 100;
         }
 
-        UI.updateHealth(this.health);
+        if (
+            typeof UI !== "undefined" &&
+            typeof UI.updateHealth === "function"
+        ) {
+
+            UI.updateHealth(
+                this.health
+            );
+        }
     },
 
     die() {
 
-        console.log("PLAYER DOWN");
+        console.log(
+            "PLAYER DOWN"
+        );
 
         if (
-            typeof Missions !== "undefined"
+            typeof Missions !== "undefined" &&
+            typeof Missions.playerDied === "function"
         ) {
+
             Missions.playerDied();
         }
     },
@@ -251,8 +355,28 @@ const Player = {
         this.joystick.x = 0;
         this.joystick.y = 0;
 
-        UI.updateHealth(
-            this.health
-        );
+        const crouchButton =
+            document.getElementById(
+                "crouchButton"
+            );
+
+        if (crouchButton) {
+
+            crouchButton.textContent =
+                "CROUCH";
+
+            crouchButton.style.opacity =
+                "1";
+        }
+
+        if (
+            typeof UI !== "undefined" &&
+            typeof UI.updateHealth === "function"
+        ) {
+
+            UI.updateHealth(
+                this.health
+            );
+        }
     }
 };
