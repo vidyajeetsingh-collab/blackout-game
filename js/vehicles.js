@@ -1,76 +1,341 @@
 // PROJECT: BLACKOUT
 // Vehicle System
+// Cars + Enter/Exit + Driving + Health + Destruction
 
 const Vehicles = {
 
-    list: [],
-    currentVehicle: null,
+    vehicles: [],
+
+    activeVehicle: null,
+
+    initialized: false,
+
+    enterDistance: 3.5,
 
     init() {
-        this.list = [];
-        this.currentVehicle = null;
 
-        console.log("Vehicle system initialized.");
-    },
+        this.vehicles = [];
+        this.activeVehicle = null;
 
-    spawn(x, y, z) {
+        this.spawnVehicles();
+        this.setupControls();
 
-        const vehicle = {
-            type: "CAR",
-
-            position: {
-                x: x || 0,
-                y: y || 0,
-                z: z || 0
-            },
-
-            rotation: 0,
-
-            health: 100,
-            maxHealth: 100,
-
-            speed: 0,
-            maxSpeed: 12,
-
-            acceleration: 8,
-            braking: 12,
-
-            occupied: false,
-            destroyed: false
-        };
-
-        this.list.push(vehicle);
-
-        return vehicle;
-    },
-
-    spawnCityVehicles() {
-
-        this.list = [];
-
-        const positions = [
-            [-8, 0, -5],
-            [8, 0, -8],
-            [-15, 0, 8],
-            [14, 0, 12],
-            [0, 0, 15]
-        ];
-
-        for (const position of positions) {
-            this.spawn(
-                position[0],
-                position[1],
-                position[2]
-            );
-        }
+        this.initialized = true;
 
         console.log(
-            "City vehicles spawned:",
-            this.list.length
+            "BLACKOUT Vehicle system initialized."
         );
     },
 
-    findNearestVehicle(maxDistance = 4) {
+    spawnVehicles() {
+
+        const positions = [
+
+            {
+                x: 6,
+                z: 5,
+                rotation: 0
+            },
+
+            {
+                x: -8,
+                z: -12,
+                rotation: Math.PI / 2
+            },
+
+            {
+                x: 22,
+                z: 4,
+                rotation: Math.PI
+            },
+
+            {
+                x: -24,
+                z: 20,
+                rotation: -Math.PI / 2
+            }
+        ];
+
+        positions.forEach(
+            (position, index) => {
+
+                this.vehicles.push({
+
+                    id: index,
+
+                    type: "CAR",
+
+                    x: position.x,
+
+                    y: 0,
+
+                    z: position.z,
+
+                    rotation:
+                        position.rotation,
+
+                    speed: 0,
+
+                    maxSpeed: 13,
+
+                    acceleration: 9,
+
+                    brakePower: 15,
+
+                    turnSpeed: 2.2,
+
+                    health: 100,
+
+                    maxHealth: 100,
+
+                    fuel: 100,
+
+                    destroyed: false,
+
+                    occupied: false,
+
+                    color:
+                        index % 2 === 0
+                            ? "DARK"
+                            : "LIGHT"
+                });
+            }
+        );
+    },
+
+    update(deltaTime) {
+
+        if (!this.initialized) {
+            return;
+        }
+
+        for (
+            const vehicle of this.vehicles
+        ) {
+
+            if (vehicle.destroyed) {
+                continue;
+            }
+
+            if (
+                vehicle ===
+                this.activeVehicle
+            ) {
+
+                this.driveVehicle(
+                    vehicle,
+                    deltaTime
+                );
+
+            } else {
+
+                // Slowly stop parked vehicles.
+                vehicle.speed *=
+                    Math.pow(
+                        0.05,
+                        deltaTime
+                    );
+            }
+        }
+
+        this.updatePlayerPosition();
+    },
+
+    driveVehicle(
+        vehicle,
+        deltaTime
+    ) {
+
+        if (
+            typeof Player === "undefined"
+        ) {
+            return;
+        }
+
+        const joystick =
+            Player.joystick;
+
+        const inputX =
+            joystick
+                ? joystick.x
+                : 0;
+
+        const inputY =
+            joystick
+                ? joystick.y
+                : 0;
+
+        /*
+         * Forward direction.
+         * The joystick pushes upward
+         * when y is negative.
+         */
+        const throttle =
+            -inputY;
+
+        const steering =
+            inputX;
+
+        if (
+            Math.abs(throttle) >
+            0.05
+        ) {
+
+            vehicle.speed +=
+                throttle *
+                vehicle.acceleration *
+                deltaTime;
+
+        } else {
+
+            vehicle.speed *=
+                Math.pow(
+                    0.35,
+                    deltaTime
+                );
+        }
+
+        vehicle.speed =
+            Math.max(
+                -vehicle.maxSpeed * 0.45,
+                Math.min(
+                    vehicle.maxSpeed,
+                    vehicle.speed
+                )
+            );
+
+        /*
+         * Steering becomes stronger
+         * as the vehicle moves.
+         */
+        if (
+            Math.abs(vehicle.speed) >
+            0.2 &&
+            Math.abs(steering) >
+            0.03
+        ) {
+
+            const direction =
+                vehicle.speed >= 0
+                    ? 1
+                    : -1;
+
+            vehicle.rotation +=
+                steering *
+                vehicle.turnSpeed *
+                deltaTime *
+                direction;
+        }
+
+        const forwardX =
+            Math.sin(
+                vehicle.rotation
+            );
+
+        const forwardZ =
+            Math.cos(
+                vehicle.rotation
+            );
+
+        vehicle.x +=
+            forwardX *
+            vehicle.speed *
+            deltaTime;
+
+        vehicle.z +=
+            forwardZ *
+            vehicle.speed *
+            deltaTime;
+
+        /*
+         * Keep the vehicle inside
+         * the playable city area.
+         */
+        vehicle.x =
+            Math.max(
+                -45,
+                Math.min(
+                    45,
+                    vehicle.x
+                )
+            );
+
+        vehicle.z =
+            Math.max(
+                -45,
+                Math.min(
+                    45,
+                    vehicle.z
+                )
+            );
+
+        /*
+         * Simple collision with
+         * the edge of the city.
+         */
+        if (
+            Math.abs(vehicle.x) >= 44 ||
+            Math.abs(vehicle.z) >= 44
+        ) {
+
+            vehicle.speed *= -0.25;
+
+            this.damageVehicle(
+                vehicle,
+                5
+            );
+        }
+
+        /*
+         * Small automatic vehicle
+         * damage at very high speed.
+         */
+        if (
+            Math.abs(vehicle.speed) >
+            vehicle.maxSpeed * 0.95
+        ) {
+
+            vehicle.fuel -=
+                deltaTime * 0.5;
+
+            vehicle.fuel =
+                Math.max(
+                    0,
+                    vehicle.fuel
+                );
+        }
+    },
+
+    updatePlayerPosition() {
+
+        if (
+            !this.activeVehicle ||
+            typeof Player === "undefined"
+        ) {
+            return;
+        }
+
+        const vehicle =
+            this.activeVehicle;
+
+        /*
+         * Keep player attached to
+         * the driver's position.
+         */
+        Player.position.x =
+            vehicle.x;
+
+        Player.position.z =
+            vehicle.z;
+
+        Player.position.y =
+            0;
+
+        Player.rotation.y =
+            vehicle.rotation;
+    },
+
+    getNearestVehicle() {
 
         if (
             typeof Player === "undefined"
@@ -79,222 +344,185 @@ const Vehicles = {
         }
 
         let nearest = null;
-        let nearestDistance = maxDistance;
 
-        for (const vehicle of this.list) {
+        let nearestDistance =
+            this.enterDistance;
 
-            if (vehicle.destroyed) {
+        for (
+            const vehicle of this.vehicles
+        ) {
+
+            if (
+                vehicle.destroyed ||
+                vehicle.occupied
+            ) {
                 continue;
             }
 
             const dx =
-                Player.position.x -
-                vehicle.position.x;
+                vehicle.x -
+                Player.position.x;
 
             const dz =
-                Player.position.z -
-                vehicle.position.z;
+                vehicle.z -
+                Player.position.z;
 
             const distance =
-                Math.hypot(dx, dz);
+                Math.hypot(
+                    dx,
+                    dz
+                );
 
-            if (distance < nearestDistance) {
-                nearest = vehicle;
-                nearestDistance = distance;
+            if (
+                distance <
+                nearestDistance
+            ) {
+
+                nearestDistance =
+                    distance;
+
+                nearest =
+                    vehicle;
             }
         }
 
         return nearest;
     },
 
-    enter(vehicle) {
+    enterNearestVehicle() {
 
-        if (!vehicle || vehicle.destroyed) {
-            return false;
-        }
-
-        if (this.currentVehicle) {
-            return false;
-        }
-
-        vehicle.occupied = true;
-        this.currentVehicle = vehicle;
-
-        console.log("Entered vehicle.");
-
-        return true;
-    },
-
-    exit() {
-
-        if (!this.currentVehicle) {
-            return false;
-        }
-
-        this.currentVehicle.occupied = false;
-
-        this.currentVehicle.speed = 0;
-
-        this.currentVehicle = null;
-
-        console.log("Exited vehicle.");
-
-        return true;
-    },
-
-    toggleNearestVehicle() {
-
-        if (this.currentVehicle) {
-            this.exit();
+        if (
+            this.activeVehicle
+        ) {
             return;
         }
 
         const vehicle =
-            this.findNearestVehicle();
-
-        if (vehicle) {
-            this.enter(vehicle);
-        }
-    },
-
-    accelerate(amount, deltaTime) {
-
-        const vehicle =
-            this.currentVehicle;
-
-        if (!vehicle || vehicle.destroyed) {
-            return;
-        }
-
-        vehicle.speed +=
-            amount *
-            vehicle.acceleration *
-            deltaTime;
-
-        vehicle.speed =
-            Math.max(
-                -vehicle.maxSpeed * 0.4,
-                Math.min(
-                    vehicle.maxSpeed,
-                    vehicle.speed
-                )
-            );
-    },
-
-    brake(deltaTime) {
-
-        const vehicle =
-            this.currentVehicle;
+            this.getNearestVehicle();
 
         if (!vehicle) {
+
+            console.log(
+                "No vehicle nearby."
+            );
+
             return;
         }
 
-        if (vehicle.speed > 0) {
-
-            vehicle.speed =
-                Math.max(
-                    0,
-                    vehicle.speed -
-                    vehicle.braking *
-                    deltaTime
-                );
-
-        } else if (vehicle.speed < 0) {
-
-            vehicle.speed =
-                Math.min(
-                    0,
-                    vehicle.speed +
-                    vehicle.braking *
-                    deltaTime
-                );
-        }
+        this.enterVehicle(
+            vehicle
+        );
     },
 
-    steer(direction, deltaTime) {
+    enterVehicle(vehicle) {
 
-        const vehicle =
-            this.currentVehicle;
-
-        if (!vehicle || vehicle.destroyed) {
-            return;
-        }
-
-        const steeringStrength = 2.2;
-
-        vehicle.rotation +=
-            direction *
-            steeringStrength *
-            deltaTime *
-            (Math.abs(vehicle.speed) /
-                vehicle.maxSpeed);
-    },
-
-    update(deltaTime) {
-
-        const vehicle =
-            this.currentVehicle;
-
-        if (!vehicle || vehicle.destroyed) {
-            return;
-        }
-
-        const forwardX =
-            Math.sin(vehicle.rotation);
-
-        const forwardZ =
-            Math.cos(vehicle.rotation);
-
-        vehicle.position.x +=
-            forwardX *
-            vehicle.speed *
-            deltaTime;
-
-        vehicle.position.z +=
-            forwardZ *
-            vehicle.speed *
-            deltaTime;
-
-        // Keep vehicles inside the playable city area.
-        vehicle.position.x =
-            Math.max(
-                -45,
-                Math.min(
-                    45,
-                    vehicle.position.x
-                )
-            );
-
-        vehicle.position.z =
-            Math.max(
-                -45,
-                Math.min(
-                    45,
-                    vehicle.position.z
-                )
-            );
-
-        // Friction.
-        vehicle.speed *=
-            Math.pow(
-                0.96,
-                deltaTime * 60
-            );
-
-        // Keep player with vehicle.
         if (
-            typeof Player !== "undefined"
+            !vehicle ||
+            vehicle.destroyed ||
+            vehicle.occupied
         ) {
-            Player.position.x =
-                vehicle.position.x;
+            return;
+        }
 
-            Player.position.z =
-                vehicle.position.z;
+        vehicle.occupied =
+            true;
+
+        this.activeVehicle =
+            vehicle;
+
+        vehicle.speed = 0;
+
+        if (
+            typeof Camera !== "undefined"
+        ) {
+
+            Camera.distance = 8;
+            Camera.height = 4;
+        }
+
+        this.updateVehicleUI();
+
+        console.log(
+            "ENTERED VEHICLE:",
+            vehicle.id
+        );
+    },
+
+    exitVehicle() {
+
+        if (
+            !this.activeVehicle ||
+            typeof Player === "undefined"
+        ) {
+            return;
+        }
+
+        const vehicle =
+            this.activeVehicle;
+
+        const sideX =
+            Math.cos(
+                vehicle.rotation
+            ) * 2;
+
+        const sideZ =
+                -Math.sin(
+                    vehicle.rotation
+                ) * 2;
+
+        Player.position.x =
+            vehicle.x +
+            sideX;
+
+        Player.position.z =
+            vehicle.z +
+            sideZ;
+
+        Player.position.y =
+            0;
+
+        vehicle.occupied =
+            false;
+
+        vehicle.speed =
+            0;
+
+        this.activeVehicle =
+            null;
+
+        if (
+            typeof Camera !== "undefined"
+        ) {
+
+            Camera.distance = 6;
+            Camera.height = 2.8;
+        }
+
+        this.updateVehicleUI();
+
+        console.log(
+            "EXITED VEHICLE"
+        );
+    },
+
+    toggleVehicle() {
+
+        if (
+            this.activeVehicle
+        ) {
+
+            this.exitVehicle();
+
+        } else {
+
+            this.enterNearestVehicle();
         }
     },
 
-    damage(vehicle, amount) {
+    damageVehicle(
+        vehicle,
+        amount
+    ) {
 
         if (
             !vehicle ||
@@ -303,14 +531,49 @@ const Vehicles = {
             return;
         }
 
-        vehicle.health -= amount;
+        vehicle.health -=
+            amount;
 
-        if (vehicle.health <= 0) {
-            this.destroy(vehicle);
+        vehicle.health =
+            Math.max(
+                0,
+                vehicle.health
+            );
+
+        console.log(
+            "VEHICLE DAMAGE:",
+            amount
+        );
+
+        if (
+            vehicle.health <= 0
+        ) {
+
+            this.destroyVehicle(
+                vehicle
+            );
         }
+
+        this.updateVehicleUI();
     },
 
-    destroy(vehicle) {
+    damageActiveVehicle(
+        amount
+    ) {
+
+        if (
+            !this.activeVehicle
+        ) {
+            return;
+        }
+
+        this.damageVehicle(
+            this.activeVehicle,
+            amount
+        );
+    },
+
+    destroyVehicle(vehicle) {
 
         if (!vehicle) {
             return;
@@ -322,37 +585,236 @@ const Vehicles = {
         vehicle.occupied = false;
 
         if (
-            this.currentVehicle === vehicle
+            this.activeVehicle ===
+            vehicle
         ) {
-            this.currentVehicle = null;
+
+            this.activeVehicle =
+                null;
+
+            if (
+                typeof Player !==
+                "undefined"
+            ) {
+
+                Player.position.x =
+                    vehicle.x + 2;
+
+                Player.position.z =
+                    vehicle.z;
+            }
+
+            if (
+                typeof Camera !==
+                "undefined"
+            ) {
+
+                Camera.distance = 6;
+                Camera.height = 2.8;
+            }
         }
 
+        this.updateVehicleUI();
+
         console.log(
-            "Vehicle destroyed."
+            "VEHICLE DESTROYED:",
+            vehicle.id
         );
     },
 
-    shootFromVehicle() {
+    repairActiveVehicle(
+        amount = 25
+    ) {
 
-        if (!this.currentVehicle) {
+        if (
+            !this.activeVehicle
+        ) {
             return;
         }
 
-        console.log(
-            "Player fired from vehicle."
-        );
+        const vehicle =
+            this.activeVehicle;
 
         if (
-            typeof Weapons !== "undefined" &&
-            typeof Weapons.fire === "function"
+            vehicle.destroyed
         ) {
-            Weapons.fire();
+            return;
+        }
+
+        vehicle.health =
+            Math.min(
+                vehicle.maxHealth,
+                vehicle.health +
+                amount
+            );
+
+        this.updateVehicleUI();
+    },
+
+    refuelActiveVehicle(
+        amount = 25
+    ) {
+
+        if (
+            !this.activeVehicle
+        ) {
+            return;
+        }
+
+        const vehicle =
+            this.activeVehicle;
+
+        vehicle.fuel =
+            Math.min(
+                100,
+                vehicle.fuel +
+                amount
+            );
+
+        this.updateVehicleUI();
+    },
+
+    getActiveVehicle() {
+
+        return this.activeVehicle;
+    },
+
+    isDriving() {
+
+        return (
+            this.activeVehicle !==
+            null
+        );
+    },
+
+    getAliveVehicles() {
+
+        return this.vehicles.filter(
+            vehicle =>
+                !vehicle.destroyed
+        );
+    },
+
+    setupControls() {
+
+        /*
+         * Create the vehicle button
+         * automatically so index.html
+         * does not need another button.
+         */
+
+        const controls =
+            document.getElementById(
+                "actionButtons"
+            );
+
+        if (!controls) {
+            console.error(
+                "Action buttons container not found."
+            );
+            return;
+        }
+
+        if (
+            document.getElementById(
+                "vehicleButton"
+            )
+        ) {
+            return;
+        }
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.id =
+            "vehicleButton";
+
+        button.textContent =
+            "ENTER CAR";
+
+        controls.appendChild(
+            button
+        );
+
+        button.addEventListener(
+            "pointerdown",
+            (event) => {
+
+                event.preventDefault();
+
+                this.toggleVehicle();
+            }
+        );
+
+        /*
+         * Keyboard support for desktop
+         * testing later.
+         */
+        window.addEventListener(
+            "keydown",
+            (event) => {
+
+                if (
+                    event.key.toLowerCase() ===
+                    "e"
+                ) {
+
+                    this.toggleVehicle();
+                }
+            }
+        );
+    },
+
+    updateVehicleUI() {
+
+        const button =
+            document.getElementById(
+                "vehicleButton"
+            );
+
+        if (!button) {
+            return;
+        }
+
+        if (
+            this.activeVehicle
+        ) {
+
+            button.textContent =
+                "EXIT CAR";
+
+            button.style.opacity =
+                "0.65";
+
+        } else {
+
+            button.textContent =
+                "ENTER CAR";
+
+            button.style.opacity =
+                "1";
         }
     },
 
-    clear() {
+    reset() {
 
-        this.list = [];
-        this.currentVehicle = null;
+        this.vehicles = [];
+
+        this.activeVehicle =
+            null;
+
+        this.spawnVehicles();
+
+        if (
+            typeof Camera !== "undefined"
+        ) {
+
+            Camera.distance = 6;
+            Camera.height = 2.8;
+        }
+
+        this.updateVehicleUI();
     }
 };
