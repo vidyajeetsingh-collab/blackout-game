@@ -1,289 +1,216 @@
-// PROJECT: BLACKOUT
-// Enemy System
 
 const Enemies = {
-
     enemies: [],
+    initialized: false,
 
-    attackDistance: 2.2,
-
-    init() {
-
-        this.enemies = [];
-
-        this.spawnEnemies();
-
-        console.log("Enemy system initialized.");
+    settings: {
+        detectionRange: 24,
+        attackRange: 2.2,
+        attackDamage: 7,
+        attackCooldown: 1.15,
+        moveSpeed: 1.65,
+        hitRadius: 1.15
     },
 
-    spawnEnemies() {
+    init() {
+        this.enemies = [];
 
-        const positions = [
-            { x: 12, z: -10 },
-            { x: -15, z: -8 },
-            { x: 18, z: 8 },
-            { x: -12, z: 15 },
-            { x: 25, z: -18 }
+        const spawnPoints = [
+            { x: 18, z: 12 },
+            { x: 26, z: 25 },
+            { x: -18, z: 16 },
+            { x: -28, z: -12 },
+            { x: 12, z: -26 },
+            { x: 34, z: -18 },
+            { x: -35, z: 28 },
+            { x: 5, z: 38 }
         ];
 
-        positions.forEach((position, index) => {
-
+        spawnPoints.forEach((point, index) => {
             this.enemies.push({
-
-                id: index,
-
-                type:
-                    index % 2 === 0
-                        ? "COMBAT DRONE"
-                        : "ENEMY",
-
-                x: position.x,
+                id: index + 1,
+                x: point.x,
                 y: 0,
-                z: position.z,
+                z: point.z,
 
-                health:
-                    index % 2 === 0
-                        ? 80
-                        : 100,
+                startX: point.x,
+                startZ: point.z,
 
-                maxHealth:
-                    index % 2 === 0
-                        ? 80
-                        : 100,
+                health: 100,
+                maxHealth: 100,
+                alive: true,
 
-                speed:
-                    index % 2 === 0
-                        ? 1.8
-                        : 1.2,
+                type: index % 3 === 0 ? "drone" : "soldier",
 
-                damage:
-                    index % 2 === 0
-                        ? 8
-                        : 10,
+                state: "patrol",
+                patrolAngle: Math.random() * Math.PI * 2,
+                patrolTimer: Math.random() * 3,
 
-                attackCooldown: 0,
-
-                alive: true
+                attackTimer: 0,
+                hitFlash: 0,
+                alert: false
             });
         });
+
+        this.initialized = true;
     },
 
     update(deltaTime) {
+        if (!this.initialized) return;
 
-        if (
-            typeof Player === "undefined"
-        ) {
-            return;
-        }
+        const dt = Math.min(deltaTime || 0, 0.05);
 
-        for (
-            const enemy of this.enemies
-        ) {
+        if (typeof Player === "undefined") return;
 
-            if (!enemy.alive) {
-                continue;
-            }
+        this.enemies.forEach(enemy => {
+            if (!enemy.alive) return;
 
-            if (enemy.attackCooldown > 0) {
-                enemy.attackCooldown -= deltaTime;
-            }
+            enemy.attackTimer = Math.max(0, enemy.attackTimer - dt);
+            enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
 
-            const dx =
-                Player.position.x - enemy.x;
+            const dx = Player.x - enemy.x;
+            const dz = Player.z - enemy.z;
+            const distance = Math.hypot(dx, dz);
 
-            const dz =
-                Player.position.z - enemy.z;
+            if (distance < this.settings.detectionRange) {
+                enemy.alert = true;
+                enemy.state = distance <= this.settings.attackRange
+                    ? "attack"
+                    : "chase";
 
-            const distance =
-                Math.hypot(dx, dz);
+                if (distance > this.settings.attackRange) {
+                    const length = Math.max(distance, 0.001);
 
-            if (
-                distance > this.attackDistance
-            ) {
+                    enemy.x += (dx / length) *
+                        this.settings.moveSpeed * dt;
 
-                const length =
-                    Math.max(distance, 0.001);
-
-                enemy.x +=
-                    (dx / length) *
-                    enemy.speed *
-                    deltaTime;
-
-                enemy.z +=
-                    (dz / length) *
-                    enemy.speed *
-                    deltaTime;
-            }
-
-            if (
-                distance <= this.attackDistance
-            ) {
-
-                if (
-                    enemy.attackCooldown <= 0
-                ) {
-
-                    Player.damage(
-                        enemy.damage
-                    );
-
-                    enemy.attackCooldown =
-                        1.2;
+                    enemy.z += (dz / length) *
+                        this.settings.moveSpeed * dt;
+                } else {
+                    this.attackPlayer(enemy);
                 }
+
+                return;
             }
-        }
+
+            enemy.state = "patrol";
+            enemy.alert = false;
+            enemy.patrolTimer -= dt;
+
+            if (enemy.patrolTimer <= 0) {
+                enemy.patrolAngle += (Math.random() - 0.5) * 2.2;
+                enemy.patrolTimer = 1.5 + Math.random() * 3;
+            }
+
+            const patrolSpeed = this.settings.moveSpeed * 0.28;
+
+            enemy.x += Math.sin(enemy.patrolAngle) * patrolSpeed * dt;
+            enemy.z += Math.cos(enemy.patrolAngle) * patrolSpeed * dt;
+
+            // Keep patrols close to their starting area.
+            const fromStartX = enemy.x - enemy.startX;
+            const fromStartZ = enemy.z - enemy.startZ;
+            const patrolDistance = Math.hypot(fromStartX, fromStartZ);
+
+            if (patrolDistance > 7) {
+                enemy.patrolAngle = Math.atan2(
+                    enemy.startX - enemy.x,
+                    enemy.startZ - enemy.z
+                );
+            }
+        });
     },
 
-    // =========================================
-    // HIT ENEMY IN PLAYER'S AIM DIRECTION
-    // =========================================
+    attackPlayer(enemy) {
+        if (enemy.attackTimer > 0) return;
+
+        enemy.attackTimer = this.settings.attackCooldown;
+
+        if (typeof Player === "undefined") return;
+
+        // Support the damage method exposed by the player system.
+        if (typeof Player.takeDamage === "function") {
+            Player.takeDamage(this.settings.attackDamage);
+        } else if (typeof Player.damage === "function") {
+            Player.damage(this.settings.attackDamage);
+        }
+    },
 
     hitTarget(damage) {
+        if (!this.initialized) return false;
+        if (typeof Player === "undefined") return false;
 
-        if (
-            typeof Player === "undefined" ||
-            typeof Camera === "undefined"
-        ) {
-            return;
-        }
+        const yaw = typeof Camera !== "undefined"
+            ? Camera.yaw || 0
+            : (Player.rotation?.y || 0);
+
+        // Aim direction follows the camera's horizontal rotation.
+        const dirX = Math.sin(yaw);
+        const dirZ = Math.cos(yaw);
 
         let bestEnemy = null;
-        let bestScore = Infinity;
+        let bestDistance = Infinity;
 
-        // Camera direction
-        const dx =
-            Camera.target.x -
-            Camera.position.x;
+        this.enemies.forEach(enemy => {
+            if (!enemy.alive) return;
 
-        const dz =
-            Camera.target.z -
-            Camera.position.z;
+            const dx = enemy.x - Player.x;
+            const dz = enemy.z - Player.z;
 
-        const directionLength =
-            Math.hypot(dx, dz);
+            const forwardDistance = dx * dirX + dz * dirZ;
 
-        if (
-            directionLength < 0.001
-        ) {
-            return;
-        }
+            // Ignore targets behind the player.
+            if (forwardDistance <= 0) return;
 
-        const dirX =
-            dx / directionLength;
+            const sideDistance = Math.abs(
+                dx * dirZ - dz * dirX
+            );
 
-        const dirZ =
-            dz / directionLength;
+            // Wider tolerance at longer distances.
+            const tolerance = this.settings.hitRadius +
+                forwardDistance * 0.025;
 
-        for (
-            const enemy of this.enemies
-        ) {
+            if (sideDistance > tolerance) return;
+            if (forwardDistance > 65) return;
 
-            if (!enemy.alive) {
-                continue;
-            }
-
-            const toEnemyX =
-                enemy.x -
-                Camera.position.x;
-
-            const toEnemyZ =
-                enemy.z -
-                Camera.position.z;
-
-            const distance =
-                Math.hypot(
-                    toEnemyX,
-                    toEnemyZ
-                );
-
-            // Weapon range
-            if (distance > 45) {
-                continue;
-            }
-
-            const enemyLength =
-                Math.max(distance, 0.001);
-
-            const enemyDirX =
-                toEnemyX /
-                enemyLength;
-
-            const enemyDirZ =
-                toEnemyZ /
-                enemyLength;
-
-            // Dot product tells us whether
-            // the enemy is in front of us.
-            const dot =
-                dirX * enemyDirX +
-                dirZ * enemyDirZ;
-
-            // About 25 degrees aiming tolerance
-            if (dot < 0.90) {
-                continue;
-            }
-
-            // Prefer the closest enemy
-            // that is actually in the aim direction.
-            const score =
-                distance -
-                dot * 5;
-
-            if (
-                score < bestScore
-            ) {
-
-                bestScore = score;
+            if (forwardDistance < bestDistance) {
+                bestDistance = forwardDistance;
                 bestEnemy = enemy;
             }
-        }
+        });
 
-        if (!bestEnemy) {
-            return;
-        }
+        if (!bestEnemy) return false;
 
-        bestEnemy.health -= damage;
+        const hitDamage = Math.max(0, Number(damage) || 0);
 
-        console.log(
-            "HIT ENEMY:",
-            bestEnemy.id,
-            "DAMAGE:",
-            damage
+        bestEnemy.health = Math.max(
+            0,
+            bestEnemy.health - hitDamage
         );
 
-        if (
-            bestEnemy.health <= 0
-        ) {
+        bestEnemy.hitFlash = 0.16;
+        bestEnemy.alert = true;
+        bestEnemy.state = "chase";
 
-            bestEnemy.health = 0;
-
+        if (bestEnemy.health <= 0) {
             bestEnemy.alive = false;
+            bestEnemy.state = "dead";
 
-            console.log(
-                "ENEMY ELIMINATED:",
-                bestEnemy.id
-            );
+            console.log("ENEMY ELIMINATED:", bestEnemy.id);
         }
-    },
 
-    getAliveCount() {
-
-        return this.enemies.filter(
-            enemy => enemy.alive
-        ).length;
+        return true;
     },
 
     getAliveEnemies() {
+        return this.enemies.filter(enemy => enemy.alive);
+    },
 
-        return this.enemies.filter(
-            enemy => enemy.alive
-        );
+    getAliveCount() {
+        return this.enemies.filter(enemy => enemy.alive).length;
     },
 
     reset() {
-
-        this.enemies = [];
-
-        this.spawnEnemies();
+        this.init();
     }
 };
