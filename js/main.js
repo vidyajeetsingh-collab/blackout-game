@@ -27,6 +27,7 @@ const Game = {
         World.init();
         UI.init();
         Settings.init();
+        AudioSystem.init(); 
         Missions.init();
 
         // Create and display the main menu.
