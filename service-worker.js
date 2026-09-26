@@ -31,6 +31,7 @@ const APP_FILES = [
   "./js/ui.js",
   "./js/menu.js",
   "./js/settings.js",
+"./js/audio.js",
   "./js/save.js"
 ];
 
