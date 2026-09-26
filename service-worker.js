@@ -3,7 +3,7 @@
    Service Worker
 ========================================= */
 
-const CACHE_NAME = "blackout-cache-v3";
+const CACHE_NAME = "blackout-cache-v4";
 
 const APP_FILES = [
   "./",
