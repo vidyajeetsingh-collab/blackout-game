@@ -128,11 +128,28 @@ const Weapons = {
             return false;
         }
 
-        this.lastShot = now;
+      this.lastShot = now;
 
-        weapon.magazine--;
+weapon.magazine--;
 
-        let hit = false;
+// Play the sound for the current weapon.
+if (
+    typeof AudioSystem !== "undefined"
+) {
+    const soundNames = {
+        "PISTOL": "pistol",
+        "SMG": "smg",
+        "ASSAULT RIFLE": "rifle",
+        "SHOTGUN": "shotgun",
+        "SNIPER RIFLE": "sniper"
+    };
+
+    AudioSystem.playShot(
+        soundNames[weapon.name] || "pistol"
+    );
+}
+
+let hit = false;
 
         if (
             typeof Enemies !== "undefined" &&
@@ -247,11 +264,18 @@ const Weapons = {
             return;
         }
 
-        this.reloading = true;
+      this.reloading = true;
 
-        this.updateUI();
+// Play the reload sound.
+if (
+    typeof AudioSystem !== "undefined"
+) {
+    AudioSystem.reload();
+}
 
-        this.showMessage("RELOADING...");
+this.updateUI();
+
+this.showMessage("RELOADING...");
 
         this.reloadTimer =
             setTimeout(
