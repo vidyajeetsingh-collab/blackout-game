@@ -1,8 +1,9 @@
 
 /* =========================================================
    PROJECT: BLACKOUT
-   Enemy Combat System
-   Player detection, combat, hit detection and ammo drops
+   Smarter Enemy AI
+   Soldiers: ranged attacks, strafing, distance control
+   Drones: aggressive tracking and close-range attacks
    ========================================================= */
 
 const Enemies = {
@@ -10,11 +11,21 @@ const Enemies = {
     initialized: false,
 
     settings: {
-        detectionRange: 24,
-        attackRange: 2.2,
-        attackDamage: 7,
-        attackCooldown: 1.15,
-        moveSpeed: 1.65,
+        detectionRange: 28,
+        soldierLoseTargetTime: 7,
+
+        soldierPreferredRange: 10,
+        soldierRangeTolerance: 2.5,
+        soldierSpeed: 1.45,
+        soldierDamage: 5,
+        soldierAttackCooldown: 1.8,
+        soldierAttackRange: 20,
+
+        droneAttackRange: 2.5,
+        droneSpeed: 2.4,
+        droneDamage: 8,
+        droneAttackCooldown: 1.2,
+
         hitRadius: 1.15,
         soldierHealth: 100,
         droneHealth: 80
@@ -35,15 +46,20 @@ const Enemies = {
         ];
 
         spawnPoints.forEach((point, index) => {
-            const type = index % 3 === 0 ? "drone" : "soldier";
-            const health = type === "drone"
+            const type = index % 3 === 0
+                ? "COMBAT DRONE"
+                : "SOLDIER";
+
+            const health = type === "COMBAT DRONE"
                 ? this.settings.droneHealth
                 : this.settings.soldierHealth;
 
             this.enemies.push({
                 id: index + 1,
+                type,
+
                 x: point.x,
-                y: type === "drone" ? 2.2 : 0,
+                y: type === "COMBAT DRONE" ? 2.2 : 0,
                 z: point.z,
 
                 startX: point.x,
@@ -52,19 +68,24 @@ const Enemies = {
                 health,
                 maxHealth: health,
                 alive: true,
-                type,
 
                 state: "patrol",
-                patrolAngle: Math.random() * Math.PI * 2,
-                patrolTimer: Math.random() * 3,
+                alert: false,
+                alertTimer: 0,
 
-                attackTimer: Math.random() * 0.5,
-                hitFlash: 0,
-                alert: false
+                patrolAngle: Math.random() * Math.PI * 2,
+                patrolTimer: 1 + Math.random() * 3,
+
+                attackTimer: Math.random() * 1.5,
+                strafeDirection: Math.random() < 0.5 ? -1 : 1,
+                strafeTimer: 2 + Math.random() * 3,
+
+                hitFlash: 0
             });
         });
 
         this.initialized = true;
+        console.log("BLACKOUT Smart Enemy AI initialized.");
     },
 
     getPlayerPosition() {
@@ -86,8 +107,8 @@ const Enemies = {
 
         if (!player) return;
 
-        this.enemies.forEach(enemy => {
-            if (!enemy.alive) return;
+        for (const enemy of this.enemies) {
+            if (!enemy.alive) continue;
 
             enemy.attackTimer = Math.max(0, enemy.attackTimer - dt);
             enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
@@ -98,74 +119,153 @@ const Enemies = {
 
             if (distance <= this.settings.detectionRange) {
                 enemy.alert = true;
+                enemy.alertTimer = this.settings.soldierLoseTargetTime;
+            } else if (enemy.alertTimer > 0) {
+                enemy.alertTimer = Math.max(0, enemy.alertTimer - dt);
+            } else {
+                enemy.alert = false;
+            }
 
-                if (distance <= this.settings.attackRange) {
-                    enemy.state = "attack";
-                    this.attackPlayer(enemy);
+            if (enemy.alert) {
+                if (enemy.type === "COMBAT DRONE") {
+                    this.updateDrone(enemy, player, distance, dt);
                 } else {
-                    enemy.state = "chase";
-
-                    const length = Math.max(distance, 0.001);
-                    const speed = this.settings.moveSpeed *
-                        (enemy.type === "drone" ? 1.2 : 1);
-
-                    enemy.x += (dx / length) * speed * dt;
-                    enemy.z += (dz / length) * speed * dt;
-
-                    // Drones hover slightly above ground.
-                    if (enemy.type === "drone") {
-                        enemy.y = 2.2 + Math.sin(performance.now() * 0.002 + enemy.id) * 0.15;
-                    }
+                    this.updateSoldier(enemy, player, distance, dt);
                 }
 
-                return;
+                continue;
             }
 
-            enemy.state = "patrol";
-            enemy.alert = false;
-            enemy.patrolTimer -= dt;
-
-            if (enemy.patrolTimer <= 0) {
-                enemy.patrolAngle += (Math.random() - 0.5) * 2.2;
-                enemy.patrolTimer = 1.5 + Math.random() * 3;
-            }
-
-            const patrolSpeed = this.settings.moveSpeed * 0.28;
-
-            enemy.x += Math.sin(enemy.patrolAngle) * patrolSpeed * dt;
-            enemy.z += Math.cos(enemy.patrolAngle) * patrolSpeed * dt;
-
-            const fromStartX = enemy.x - enemy.startX;
-            const fromStartZ = enemy.z - enemy.startZ;
-            const patrolDistance = Math.hypot(fromStartX, fromStartZ);
-
-            if (patrolDistance > 7) {
-                enemy.patrolAngle = Math.atan2(
-                    enemy.startX - enemy.x,
-                    enemy.startZ - enemy.z
-                );
-            }
-        });
+            this.updatePatrol(enemy, dt);
+        }
     },
 
-    attackPlayer(enemy) {
+    updateSoldier(enemy, player, distance, dt) {
+        const dx = player.x - enemy.x;
+        const dz = player.z - enemy.z;
+        const length = Math.max(distance, 0.001);
+
+        const dirX = dx / length;
+        const dirZ = dz / length;
+
+        const preferred = this.settings.soldierPreferredRange;
+        const tolerance = this.settings.soldierRangeTolerance;
+
+        enemy.strafeTimer -= dt;
+
+        if (enemy.strafeTimer <= 0) {
+            enemy.strafeDirection *= -1;
+            enemy.strafeTimer = 2 + Math.random() * 3;
+        }
+
+        const strafeX = dirZ * enemy.strafeDirection;
+        const strafeZ = -dirX * enemy.strafeDirection;
+
+        if (distance > preferred + tolerance) {
+            // Close in, but do not rush directly into the player.
+            enemy.state = "advance";
+
+            enemy.x += dirX * this.settings.soldierSpeed * dt;
+            enemy.z += dirZ * this.settings.soldierSpeed * dt;
+
+            // Small lateral movement makes soldiers less predictable.
+            enemy.x += strafeX * this.settings.soldierSpeed * 0.28 * dt;
+            enemy.z += strafeZ * this.settings.soldierSpeed * 0.28 * dt;
+        } else if (distance < preferred - tolerance) {
+            // Back away when the player gets too close.
+            enemy.state = "retreat";
+
+            enemy.x -= dirX * this.settings.soldierSpeed * 0.8 * dt;
+            enemy.z -= dirZ * this.settings.soldierSpeed * 0.8 * dt;
+
+            enemy.x += strafeX * this.settings.soldierSpeed * 0.45 * dt;
+            enemy.z += strafeZ * this.settings.soldierSpeed * 0.45 * dt;
+        } else {
+            // Hold a firing distance and strafe.
+            enemy.state = "strafe";
+
+            enemy.x += strafeX * this.settings.soldierSpeed * 0.65 * dt;
+            enemy.z += strafeZ * this.settings.soldierSpeed * 0.65 * dt;
+        }
+
+        if (distance <= this.settings.soldierAttackRange) {
+            this.attackPlayer(enemy, this.settings.soldierDamage);
+        }
+    },
+
+    updateDrone(enemy, player, distance, dt) {
+        const dx = player.x - enemy.x;
+        const dz = player.z - enemy.z;
+        const length = Math.max(distance, 0.001);
+
+        if (distance > this.settings.droneAttackRange) {
+            enemy.state = "pursue";
+
+            enemy.x += (dx / length) * this.settings.droneSpeed * dt;
+            enemy.z += (dz / length) * this.settings.droneSpeed * dt;
+        } else {
+            enemy.state = "attack";
+            this.attackPlayer(enemy, this.settings.droneDamage);
+        }
+
+        // Renderer draws drones above the ground.
+        enemy.y = 2.2 + Math.sin(
+            performance.now() * 0.002 + enemy.id
+        ) * 0.18;
+    },
+
+    updatePatrol(enemy, dt) {
+        enemy.state = "patrol";
+        enemy.patrolTimer -= dt;
+
+        if (enemy.patrolTimer <= 0) {
+            enemy.patrolAngle += (Math.random() - 0.5) * 2.2;
+            enemy.patrolTimer = 1.5 + Math.random() * 3;
+        }
+
+        const speed = enemy.type === "COMBAT DRONE"
+            ? 0.55
+            : 0.42;
+
+        enemy.x += Math.sin(enemy.patrolAngle) * speed * dt;
+        enemy.z += Math.cos(enemy.patrolAngle) * speed * dt;
+
+        const dx = enemy.x - enemy.startX;
+        const dz = enemy.z - enemy.startZ;
+
+        if (Math.hypot(dx, dz) > 7) {
+            enemy.patrolAngle = Math.atan2(
+                enemy.startX - enemy.x,
+                enemy.startZ - enemy.z
+            );
+        }
+
+        if (enemy.type === "COMBAT DRONE") {
+            enemy.y = 2.2 + Math.sin(
+                performance.now() * 0.002 + enemy.id
+            ) * 0.18;
+        }
+    },
+
+    attackPlayer(enemy, damage) {
         if (enemy.attackTimer > 0) return;
 
-        enemy.attackTimer = this.settings.attackCooldown;
+        enemy.attackTimer = enemy.type === "COMBAT DRONE"
+            ? this.settings.droneAttackCooldown
+            : this.settings.soldierAttackCooldown;
 
-        if (typeof Player === "undefined") return;
-
-        if (typeof Player.damage === "function") {
-            Player.damage(this.settings.attackDamage);
-        } else if (typeof Player.takeDamage === "function") {
-            Player.takeDamage(this.settings.attackDamage);
+        if (
+            typeof Player !== "undefined" &&
+            typeof Player.damage === "function"
+        ) {
+            Player.damage(damage);
         }
     },
 
     /*
      * Called by Weapons.fire().
-     * range: weapon's effective range
-     * isShotgun: apply a small random spread for each pellet
+     * range: weapon effective range
+     * isShotgun: random spread for each pellet
      */
     hitTarget(damage, range = 65, isShotgun = false) {
         if (!this.initialized) return false;
@@ -177,12 +277,9 @@ const Enemies = {
             ? (Camera.yaw || 0)
             : (Player.rotation?.y || 0);
 
-        let aimYaw = yaw;
-
-        if (isShotgun) {
-            // Each pellet gets a slightly different direction.
-            aimYaw += (Math.random() - 0.5) * 0.24;
-        }
+        const aimYaw = yaw + (
+            isShotgun ? (Math.random() - 0.5) * 0.24 : 0
+        );
 
         const dirX = Math.sin(aimYaw);
         const dirZ = Math.cos(aimYaw);
@@ -190,45 +287,38 @@ const Enemies = {
         let bestEnemy = null;
         let bestDistance = Infinity;
 
-        this.enemies.forEach(enemy => {
-            if (!enemy.alive) return;
+        for (const enemy of this.enemies) {
+            if (!enemy.alive) continue;
 
             const dx = enemy.x - player.x;
             const dz = enemy.z - player.z;
 
-            const forwardDistance = dx * dirX + dz * dirZ;
+            const forward = dx * dirX + dz * dirZ;
 
-            if (forwardDistance <= 0 || forwardDistance > range) {
-                return;
-            }
+            if (forward <= 0 || forward > range) continue;
 
-            const sideDistance = Math.abs(
-                dx * dirZ - dz * dirX
-            );
+            const side = Math.abs(dx * dirZ - dz * dirX);
+            const tolerance = this.settings.hitRadius + forward * 0.025;
 
-            const tolerance = this.settings.hitRadius +
-                forwardDistance * 0.025;
+            if (side > tolerance) continue;
 
-            if (sideDistance > tolerance) return;
-
-            if (forwardDistance < bestDistance) {
-                bestDistance = forwardDistance;
+            if (forward < bestDistance) {
+                bestDistance = forward;
                 bestEnemy = enemy;
             }
-        });
+        }
 
         if (!bestEnemy) return false;
 
-        const hitDamage = Math.max(0, Number(damage) || 0);
-
         bestEnemy.health = Math.max(
             0,
-            bestEnemy.health - hitDamage
+            bestEnemy.health - Math.max(0, Number(damage) || 0)
         );
 
         bestEnemy.hitFlash = 0.16;
         bestEnemy.alert = true;
-        bestEnemy.state = "chase";
+        bestEnemy.alertTimer = this.settings.soldierLoseTargetTime;
+        bestEnemy.state = "alert";
 
         if (typeof AudioSystem !== "undefined") {
             AudioSystem.impact();
@@ -249,14 +339,13 @@ const Enemies = {
         enemy.state = "dead";
 
         if (
-            enemy.type === "drone" &&
+            enemy.type === "COMBAT DRONE" &&
             typeof AudioSystem !== "undefined"
         ) {
             AudioSystem.explosion();
         }
 
-        // Soldiers may drop ammunition when defeated.
-        if (enemy.type === "soldier") {
+        if (enemy.type === "SOLDIER") {
             this.dropAmmo(enemy);
         }
 
@@ -271,7 +360,6 @@ const Enemies = {
             return;
         }
 
-        // Soldiers drop either SMG or assault-rifle ammo.
         const dropType = Math.random() < 0.5
             ? "SMG_AMMO"
             : "RIFLE_AMMO";
