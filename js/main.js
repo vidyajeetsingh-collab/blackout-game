@@ -79,10 +79,23 @@ const Game = {
                     }
                 }
 
-                // Campaign menu placeholder.
-                if (action === "missions") {
-                    Menu.setStatus("CAMPAIGN MENU COMING SOON");
-                }
+                // Start a mission selected from the campaign screen.
+if (action === "select-mission") {
+    const index = event.detail.index;
+    const mission = Missions.getMission(index);
+
+    if (!mission || !mission.unlocked) {
+        Menu.setStatus("MISSION LOCKED");
+        return;
+    }
+
+    Missions.startMission(index);
+    Menu.hide();
+    UI.paused = false;
+    AudioSystem.startAmbience();
+
+    console.log("CAMPAIGN MISSION STARTED:", mission.title);
+}
 
                 // Open settings.
                 if (action === "settings") {
