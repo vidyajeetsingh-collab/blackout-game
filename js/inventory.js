@@ -1,342 +1,146 @@
 // PROJECT: BLACKOUT
-// Inventory System
-// Medkits + Ammo + Pickups + Limits
-// Audio Integration
+// Inventory: Medkits, Ammo Pickups and Ammo Limits
 
 const Inventory = {
-
     initialized: false,
 
     maxMedkits: 5,
-
     medkits: 2,
 
-    maxAmmoReserve: 999,
-
+    maxAmmoReserve: 240,
     pickups: [],
-
     pickupDistance: 2.2,
 
     init() {
-
         this.medkits = 2;
-
         this.pickups = [];
-
         this.initialized = true;
 
         this.setupControls();
-
         this.spawnInitialPickups();
-
         this.updateUI();
 
-        console.log(
-            "BLACKOUT Inventory initialized."
-        );
+        console.log("BLACKOUT Inventory initialized.");
     },
 
     setupControls() {
+        const controls = document.getElementById("actionButtons");
+        if (!controls || document.getElementById("useButton")) return;
 
-        const controls =
-            document.getElementById(
-                "actionButtons"
-            );
+        const button = document.createElement("button");
+        button.id = "useButton";
+        button.textContent = "MEDKIT 2";
+        controls.appendChild(button);
 
-        if (!controls) {
-
-            console.error(
-                "Action buttons container not found."
-            );
-
-            return;
-        }
-
-        if (
-            document.getElementById(
-                "useButton"
-            )
-        ) {
-            return;
-        }
-
-        const button =
-            document.createElement(
-                "button"
-            );
-
-        button.id =
-            "useButton";
-
-        button.textContent =
-            "MEDKIT";
-
-        controls.appendChild(
-            button
-        );
-
-        button.addEventListener(
-            "pointerdown",
-            (event) => {
-
-                event.preventDefault();
-
-                this.useMedkit();
-            }
-        );
+        button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            this.useMedkit();
+        });
     },
 
     spawnInitialPickups() {
-
         this.pickups = [
-
-            {
-                id: 0,
-                type: "MEDKIT",
-                x: 5,
-                y: 0.35,
-                z: 12,
-                amount: 1,
-                collected: false
-            },
-
-            {
-                id: 1,
-                type: "PISTOL_AMMO",
-                x: -18,
-                y: 0.35,
-                z: 5,
-                amount: 24,
-                collected: false
-            },
-
-            {
-                id: 2,
-                type: "SMG_AMMO",
-                x: 18,
-                y: 0.35,
-                z: -5,
-                amount: 45,
-                collected: false
-            },
-
-            {
-                id: 3,
-                type: "RIFLE_AMMO",
-                x: -8,
-                y: 0.35,
-                z: -18,
-                amount: 45,
-                collected: false
-            },
-
-            {
-                id: 4,
-                type: "MEDKIT",
-                x: 25,
-                y: 0.35,
-                z: 20,
-                amount: 1,
-                collected: false
-            }
+            { id: 0, type: "MEDKIT", x: 5, y: 0.35, z: 12, amount: 1, collected: false },
+            { id: 1, type: "PISTOL_AMMO", x: -18, y: 0.35, z: 5, amount: 24, collected: false },
+            { id: 2, type: "SMG_AMMO", x: 18, y: 0.35, z: -5, amount: 45, collected: false },
+            { id: 3, type: "RIFLE_AMMO", x: -8, y: 0.35, z: -18, amount: 45, collected: false },
+            { id: 4, type: "SHOTGUN_AMMO", x: 25, y: 0.35, z: -20, amount: 8, collected: false },
+            { id: 5, type: "SNIPER_AMMO", x: -30, y: 0.35, z: -25, amount: 5, collected: false },
+            { id: 6, type: "MEDKIT", x: 25, y: 0.35, z: 20, amount: 1, collected: false }
         ];
     },
 
-    update(deltaTime) {
-
-        if (!this.initialized) {
-            return;
-        }
-
-        this.checkPickups();
+    update() {
+        if (this.initialized) this.checkPickups();
     },
 
     checkPickups() {
+        if (typeof Player === "undefined" || !Player.position) return;
 
-        if (
-            typeof Player ===
-            "undefined"
-        ) {
-            return;
-        }
+        for (const pickup of this.pickups) {
+            if (pickup.collected) continue;
 
-        for (
-            const pickup of this.pickups
-        ) {
+            const dx = pickup.x - Player.position.x;
+            const dz = pickup.z - Player.position.z;
 
-            if (
-                pickup.collected
-            ) {
-                continue;
-            }
-
-            const dx =
-                pickup.x -
-                Player.position.x;
-
-            const dz =
-                pickup.z -
-                Player.position.z;
-
-            const distance =
-                Math.hypot(
-                    dx,
-                    dz
-                );
-
-            if (
-                distance <=
-                this.pickupDistance
-            ) {
-
-                this.collectPickup(
-                    pickup
-                );
+            if (Math.hypot(dx, dz) <= this.pickupDistance) {
+                this.collectPickup(pickup);
             }
         }
     },
 
     collectPickup(pickup) {
-
-        if (
-            !pickup ||
-            pickup.collected
-        ) {
-            return;
-        }
+        if (!pickup || pickup.collected) return;
 
         let collected = false;
 
-        if (
-            pickup.type ===
-            "MEDKIT"
-        ) {
-
-            if (
-                this.medkits <
-                this.maxMedkits
-            ) {
-
-                this.medkits +=
-                    pickup.amount;
-
-                this.medkits =
-                    Math.min(
-                        this.medkits,
-                        this.maxMedkits
-                    );
-
+        if (pickup.type === "MEDKIT") {
+            if (this.medkits < this.maxMedkits) {
+                this.medkits = Math.min(
+                    this.maxMedkits,
+                    this.medkits + pickup.amount
+                );
                 collected = true;
             }
-
         } else {
-
-            collected =
-                this.addAmmoToWeapon(
-                    pickup
-                );
+            collected = this.addAmmoToWeapon(pickup);
         }
 
         if (!collected) {
-
-            console.log(
-                "Inventory full:"
-            );
-
+            if (typeof UI !== "undefined") {
+                UI.showMessage("AMMO OR INVENTORY FULL");
+            }
             return;
         }
 
-        pickup.collected =
-            true;
+        pickup.collected = true;
 
-        // Play pickup sound after a successful collection.
-        if (
-            typeof AudioSystem !==
-            "undefined"
-        ) {
+        if (typeof AudioSystem !== "undefined") {
             AudioSystem.pickup();
         }
 
-        console.log(
-            "PICKUP:",
-            pickup.type,
-            pickup.amount
-        );
+        if (typeof UI !== "undefined") {
+            UI.showMessage("PICKUP: " + pickup.type.replaceAll("_", " "));
+        }
 
         this.updateUI();
     },
 
     addAmmoToWeapon(pickup) {
+        if (typeof Weapons === "undefined") return false;
 
-        if (
-            typeof Weapons ===
-            "undefined"
-        ) {
-            return false;
-        }
+        const ammoTypes = {
+            PISTOL_AMMO: "PISTOL",
+            SMG_AMMO: "SMG",
+            RIFLE_AMMO: "ASSAULT RIFLE",
+            SHOTGUN_AMMO: "SHOTGUN",
+            SNIPER_AMMO: "SNIPER RIFLE"
+        };
 
-        let weaponName = "";
+        const weaponName = ammoTypes[pickup.type];
+        if (!weaponName) return false;
 
-        if (
-            pickup.type ===
-            "PISTOL_AMMO"
-        ) {
+        const weapon = Weapons.weapons.find(
+            item => item.name === weaponName
+        );
 
-            weaponName =
-                "PISTOL";
+        if (!weapon) return false;
 
-        } else if (
-            pickup.type ===
-            "SMG_AMMO"
-        ) {
+        const currentAmmo = Math.max(0, Number(weapon.ammo) || 0);
+        const room = Math.max(0, this.maxAmmoReserve - currentAmmo);
 
-            weaponName =
-                "SMG";
+        if (room <= 0) return false;
 
-        } else if (
-            pickup.type ===
-            "RIFLE_AMMO"
-        ) {
+        const amount = Math.min(
+            room,
+            Math.max(0, Number(pickup.amount) || 0)
+        );
 
-            weaponName =
-                "ASSAULT RIFLE";
-        }
+        if (amount <= 0) return false;
 
-        if (!weaponName) {
-            return false;
-        }
+        weapon.ammo = currentAmmo + amount;
 
-        const weapon =
-            Weapons.weapons.find(
-                item =>
-                    item.name ===
-                    weaponName
-            );
-
-        if (!weapon) {
-            return false;
-        }
-
-        if (
-            weapon.ammo >=
-            this.maxAmmoReserve
-        ) {
-
-            return false;
-        }
-
-        weapon.ammo =
-            Math.min(
-                this.maxAmmoReserve,
-                weapon.ammo +
-                pickup.amount
-            );
-
-        if (
-            typeof Weapons.updateUI ===
-            "function"
-        ) {
-
+        if (typeof Weapons.updateUI === "function") {
             Weapons.updateUI();
         }
 
@@ -344,111 +148,58 @@ const Inventory = {
     },
 
     useMedkit() {
+        if (typeof Player === "undefined") return;
 
-        if (
-            typeof Player ===
-            "undefined"
-        ) {
+        if (this.medkits <= 0) {
+            if (typeof UI !== "undefined") UI.showMessage("NO MEDKITS");
             return;
         }
 
-        if (
-            this.medkits <= 0
-        ) {
-
-            console.log(
-                "NO MEDKITS"
-            );
-
-            return;
-        }
-
-        if (
-            Player.health >= 100
-        ) {
-
-            console.log(
-                "HEALTH ALREADY FULL"
-            );
-
+        if (Player.health >= 100) {
+            if (typeof UI !== "undefined") UI.showMessage("HEALTH ALREADY FULL");
             return;
         }
 
         this.medkits--;
-
         Player.heal(50);
-
         this.updateUI();
 
-        console.log(
-            "MEDKIT USED"
-        );
+        if (typeof UI !== "undefined") UI.showMessage("MEDKIT USED");
     },
 
     addMedkit(amount = 1) {
-
-        this.medkits =
-            Math.min(
-                this.maxMedkits,
-                this.medkits +
-                amount
-            );
-
+        this.medkits = Math.min(
+            this.maxMedkits,
+            this.medkits + Math.max(0, amount)
+        );
         this.updateUI();
     },
 
     removeMedkit(amount = 1) {
-
-        this.medkits =
-            Math.max(
-                0,
-                this.medkits -
-                amount
-            );
-
+        this.medkits = Math.max(0, this.medkits - Math.max(0, amount));
         this.updateUI();
     },
 
     getMedkits() {
-
         return this.medkits;
     },
 
     getPickups() {
-
         return this.pickups;
     },
 
     getAvailablePickups() {
-
-        return this.pickups.filter(
-            pickup =>
-                !pickup.collected
-        );
+        return this.pickups.filter(pickup => !pickup.collected);
     },
 
     updateUI() {
-
-        const button =
-            document.getElementById(
-                "useButton"
-            );
-
-        if (!button) {
-            return;
-        }
-
-        button.textContent =
-            "MEDKIT " +
-            this.medkits;
+        const button = document.getElementById("useButton");
+        if (button) button.textContent = "MEDKIT " + this.medkits;
     },
 
     reset() {
-
         this.medkits = 2;
-
         this.spawnInitialPickups();
-
         this.updateUI();
     }
 };
