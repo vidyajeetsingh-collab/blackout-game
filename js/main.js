@@ -1,3 +1,6 @@
+// PROJECT: BLACKOUT
+// Main Game Controller
+// Ambient Audio Integration
 
 const Game = {
     running: false,
@@ -27,7 +30,7 @@ const Game = {
         World.init();
         UI.init();
         Settings.init();
-        AudioSystem.init(); 
+        AudioSystem.init();
         Missions.init();
 
         // Create and display the main menu.
@@ -51,6 +54,9 @@ const Game = {
                     Menu.hide();
                     UI.paused = false;
 
+                    // Start ambient audio.
+                    AudioSystem.startAmbience();
+
                     console.log("NEW GAME STARTED.");
                 }
 
@@ -64,20 +70,25 @@ const Game = {
                         Menu.hide();
                         UI.paused = false;
 
+                        // Start ambient audio.
+                        AudioSystem.startAmbience();
+
                         console.log("CONTINUING SAVED GAME.");
                     } else {
                         Menu.setStatus("NO SAVED GAME FOUND");
                     }
                 }
 
-                // These options will be connected later.
+                // Campaign menu placeholder.
                 if (action === "missions") {
                     Menu.setStatus("CAMPAIGN MENU COMING SOON");
                 }
 
-               if (action === "settings") {
-    Settings.open();
-}
+                // Open settings.
+                if (action === "settings") {
+                    Settings.open();
+                }
+            }
         );
 
         // Start the game loop.
@@ -155,11 +166,21 @@ const Game = {
         if (typeof UI !== "undefined") {
             UI.paused = true;
         }
+
+        // Stop ambient audio while paused.
+        if (typeof AudioSystem !== "undefined") {
+            AudioSystem.stopAmbience();
+        }
     },
 
     resume() {
         if (typeof UI !== "undefined") {
             UI.paused = false;
+        }
+
+        // Resume ambient audio during gameplay.
+        if (typeof AudioSystem !== "undefined") {
+            AudioSystem.startAmbience();
         }
     },
 
@@ -171,6 +192,11 @@ const Game = {
             Missions.startMission(
                 Missions.currentMission
             );
+
+            // Ensure ambience is active after restarting.
+            if (typeof AudioSystem !== "undefined") {
+                AudioSystem.startAmbience();
+            }
         }
     }
 };
