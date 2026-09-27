@@ -1,9 +1,8 @@
 // PROJECT: BLACKOUT
-// Weapon System
-// Weapon Switching + Firing + Reloading
+// Complete Weapon System
+// Firing, Reloading, Ammo Limits, Switching
 
 const Weapons = {
-
     weapons: [
         {
             name: "PISTOL",
@@ -12,7 +11,10 @@ const Weapons = {
             ammo: 60,
             maxMagazine: 12,
             fireRate: 400,
-            automatic: false
+            automatic: false,
+            pellets: 1,
+            range: 65,
+            reloadDuration: 1000
         },
         {
             name: "SMG",
@@ -21,7 +23,10 @@ const Weapons = {
             ammo: 120,
             maxMagazine: 30,
             fireRate: 110,
-            automatic: true
+            automatic: true,
+            pellets: 1,
+            range: 55,
+            reloadDuration: 1400
         },
         {
             name: "ASSAULT RIFLE",
@@ -30,16 +35,22 @@ const Weapons = {
             ammo: 120,
             maxMagazine: 30,
             fireRate: 140,
-            automatic: true
+            automatic: true,
+            pellets: 1,
+            range: 65,
+            reloadDuration: 1600
         },
         {
             name: "SHOTGUN",
-            damage: 60,
+            damage: 15,
             magazine: 6,
             ammo: 36,
             maxMagazine: 6,
             fireRate: 750,
-            automatic: false
+            automatic: false,
+            pellets: 6,
+            range: 24,
+            reloadDuration: 1800
         },
         {
             name: "SNIPER RIFLE",
@@ -48,54 +59,42 @@ const Weapons = {
             ammo: 25,
             maxMagazine: 5,
             fireRate: 1000,
-            automatic: false
+            automatic: false,
+            pellets: 1,
+            range: 100,
+            reloadDuration: 2000
         }
     ],
 
     currentIndex: 0,
-
     lastShot: 0,
-
     reloading: false,
-
     firing: false,
-
     fireTimer: null,
-
     reloadTimer: null,
-
     reloadDuration: 1200,
-
+    maxAmmoReserve: 240,
     initialized: false,
 
     init() {
-
         this.stopFiring();
         this.cancelReload();
 
         this.currentIndex = 0;
         this.lastShot = 0;
-        this.reloading = false;
 
         this.setupControls();
         this.updateUI();
 
         this.initialized = true;
-
-        console.log(
-            "BLACKOUT Weapon System initialized."
-        );
+        console.log("BLACKOUT Weapon System initialized.");
     },
 
     getCurrent() {
-
-        return this.weapons[
-            this.currentIndex
-        ];
+        return this.weapons[this.currentIndex];
     },
 
     fire() {
-
         if (
             !this.initialized ||
             this.reloading ||
@@ -104,140 +103,103 @@ const Weapons = {
             return false;
         }
 
-        const weapon =
-            this.getCurrent();
+        const weapon = this.getCurrent();
+        const now = performance.now();
 
-        const now =
-            performance.now();
-
-        if (
-            now - this.lastShot <
-            weapon.fireRate
-        ) {
+        if (now - this.lastShot < weapon.fireRate) {
             return false;
         }
 
         if (weapon.magazine <= 0) {
-
             if (weapon.ammo > 0) {
                 this.reload();
             } else {
                 this.showMessage("OUT OF AMMO");
             }
-
             return false;
         }
 
-      this.lastShot = now;
+        this.lastShot = now;
+        weapon.magazine--;
 
-weapon.magazine--;
+        const soundNames = {
+            "PISTOL": "pistol",
+            "SMG": "smg",
+            "ASSAULT RIFLE": "rifle",
+            "SHOTGUN": "shotgun",
+            "SNIPER RIFLE": "sniper"
+        };
 
-// Play the sound for the current weapon.
-if (
-    typeof AudioSystem !== "undefined"
-) {
-    const soundNames = {
-        "PISTOL": "pistol",
-        "SMG": "smg",
-        "ASSAULT RIFLE": "rifle",
-        "SHOTGUN": "shotgun",
-        "SNIPER RIFLE": "sniper"
-    };
+        if (typeof AudioSystem !== "undefined") {
+            AudioSystem.playShot(soundNames[weapon.name] || "pistol");
+        }
 
-    AudioSystem.playShot(
-        soundNames[weapon.name] || "pistol"
-    );
-}
-
-let hit = false;
+        let hit = false;
 
         if (
             typeof Enemies !== "undefined" &&
             typeof Enemies.hitTarget === "function"
         ) {
+            const pellets = Math.max(1, weapon.pellets || 1);
 
-            const result =
-                Enemies.hitTarget(
-                    weapon.damage
+            for (let i = 0; i < pellets; i++) {
+                // Shotgun pellets are separate hit attempts.
+                const result = Enemies.hitTarget(
+                    weapon.damage,
+                    weapon.range,
+                    weapon.name === "SHOTGUN"
                 );
 
-            hit = result === true;
+                if (result === true) hit = true;
+            }
         }
 
         this.updateUI();
-
         this.showFireFeedback(hit);
 
-        if (
-            weapon.magazine <= 0 &&
-            weapon.ammo > 0
-        ) {
-
+        if (weapon.magazine <= 0) {
             this.stopFiring();
 
-            this.reload();
+            if (weapon.ammo > 0) {
+                this.reload();
+            } else {
+                this.showMessage("MAGAZINE EMPTY");
+            }
         }
 
         return true;
     },
 
     startFiring() {
-
-        if (this.firing) {
-            return;
-        }
-
-        if (this.isGamePaused()) {
-            return;
-        }
+        if (this.firing || this.isGamePaused()) return;
 
         this.firing = true;
-
-        const weapon =
-            this.getCurrent();
+        const weapon = this.getCurrent();
 
         this.fire();
 
-        if (!weapon.automatic) {
-            return;
-        }
+        if (!weapon.automatic) return;
 
-        this.fireTimer =
-            setInterval(
-                () => {
+        this.fireTimer = setInterval(() => {
+            if (!this.firing || this.isGamePaused()) {
+                this.stopFiring();
+                return;
+            }
 
-                    if (
-                        !this.firing ||
-                        this.isGamePaused()
-                    ) {
-
-                        this.stopFiring();
-                        return;
-                    }
-
-                    this.fire();
-
-                },
-                35
-            );
+            this.fire();
+        }, 35);
     },
 
     stopFiring() {
-
         this.firing = false;
 
         if (this.fireTimer !== null) {
-
-            clearInterval(
-                this.fireTimer
-            );
-
+            clearInterval(this.fireTimer);
             this.fireTimer = null;
         }
     },
 
     reload() {
-
         if (
             !this.initialized ||
             this.reloading
@@ -247,76 +209,45 @@ let hit = false;
 
         this.stopFiring();
 
-        const weapon =
-            this.getCurrent();
+        const weapon = this.getCurrent();
 
-        if (
-            weapon.magazine >=
-            weapon.maxMagazine
-        ) {
+        if (weapon.magazine >= weapon.maxMagazine) {
+            this.showMessage("MAGAZINE FULL");
             return;
         }
 
         if (weapon.ammo <= 0) {
-
             this.showMessage("NO AMMO");
-
             return;
         }
 
-      this.reloading = true;
+        this.reloading = true;
 
-// Play the reload sound.
-if (
-    typeof AudioSystem !== "undefined"
-) {
-    AudioSystem.reload();
-}
+        if (typeof AudioSystem !== "undefined") {
+            AudioSystem.reload();
+        }
 
-this.updateUI();
+        this.updateUI();
+        this.showMessage("RELOADING...");
 
-this.showMessage("RELOADING...");
+        this.reloadTimer = setTimeout(() => {
+            const needed = weapon.maxMagazine - weapon.magazine;
+            const available = Math.min(needed, weapon.ammo);
 
-        this.reloadTimer =
-            setTimeout(
-                () => {
+            weapon.magazine += available;
+            weapon.ammo -= available;
 
-                    const needed =
-                        weapon.maxMagazine -
-                        weapon.magazine;
+            this.reloading = false;
+            this.reloadTimer = null;
 
-                    const available =
-                        Math.min(
-                            needed,
-                            weapon.ammo
-                        );
-
-                    weapon.magazine +=
-                        available;
-
-                    weapon.ammo -=
-                        available;
-
-                    this.reloading = false;
-                    this.reloadTimer = null;
-
-                    this.updateUI();
-
-                    this.showMessage("RELOADED");
-
-                },
-                this.reloadDuration
-            );
+            this.updateUI();
+            this.showMessage("RELOADED");
+        }, weapon.reloadDuration || this.reloadDuration);
     },
 
     cancelReload() {
-
         if (this.reloadTimer !== null) {
-
-            clearTimeout(
-                this.reloadTimer
-            );
-
+            clearTimeout(this.reloadTimer);
             this.reloadTimer = null;
         }
 
@@ -324,58 +255,29 @@ this.showMessage("RELOADING...");
     },
 
     nextWeapon() {
-
-        this.stopFiring();
-        this.cancelReload();
-
-        this.currentIndex++;
-
-        if (
-            this.currentIndex >=
-            this.weapons.length
-        ) {
-            this.currentIndex = 0;
-        }
-
-        this.lastShot = 0;
-
-        this.updateUI();
-
-        this.showMessage(
-            this.getCurrent().name
-        );
+        this.selectWeapon((this.currentIndex + 1) % this.weapons.length);
+        this.showMessage(this.getCurrent().name);
     },
 
     previousWeapon() {
-
-        this.stopFiring();
-        this.cancelReload();
-
-        this.currentIndex--;
-
-        if (this.currentIndex < 0) {
-
-            this.currentIndex =
-                this.weapons.length - 1;
-        }
-
-        this.lastShot = 0;
-
-        this.updateUI();
-
-        this.showMessage(
-            this.getCurrent().name
+        this.selectWeapon(
+            (this.currentIndex - 1 + this.weapons.length) %
+            this.weapons.length
         );
+
+        this.showMessage(this.getCurrent().name);
     },
 
     selectWeapon(index) {
-
         if (
+            !Number.isInteger(index) ||
             index < 0 ||
             index >= this.weapons.length
         ) {
             return;
         }
+
+        if (index === this.currentIndex) return;
 
         this.stopFiring();
         this.cancelReload();
@@ -387,292 +289,165 @@ this.showMessage("RELOADING...");
     },
 
     updateUI() {
+        const weapon = this.getCurrent();
 
-        const weapon =
-            this.getCurrent();
-
-        const weaponElement =
-            document.getElementById("weapon");
-
-        const ammoElement =
-            document.getElementById("ammo");
+        const weaponElement = document.getElementById("weapon");
+        const ammoElement = document.getElementById("ammo");
+        const reloadButton = document.getElementById("reloadButton");
 
         if (weaponElement) {
-
-            weaponElement.textContent =
-                weapon.name;
+            weaponElement.textContent = weapon.name;
         }
 
         if (ammoElement) {
-
-            if (this.reloading) {
-
-                ammoElement.textContent =
-                    "RELOADING...";
-
-            } else {
-
-                ammoElement.textContent =
-                    weapon.magazine +
-                    " / " +
-                    weapon.ammo;
-            }
+            ammoElement.textContent = this.reloading
+                ? "RELOADING..."
+                : weapon.magazine + " / " + weapon.ammo;
         }
 
-        const reloadButton =
-            document.getElementById(
-                "reloadButton"
-            );
-
         if (reloadButton) {
-
-            reloadButton.textContent =
-                this.reloading
-                    ? "RELOADING"
-                    : "RELOAD";
+            reloadButton.textContent = this.reloading
+                ? "RELOADING"
+                : "RELOAD";
         }
     },
 
     setupControls() {
+        const fireButton = document.getElementById("shootButton");
+        const weaponButton = document.getElementById("weaponButton");
 
-        const fireButton =
-            document.getElementById(
-                "shootButton"
-            );
+        if (fireButton && !fireButton.dataset.weaponBound) {
+            fireButton.dataset.weaponBound = "true";
 
-        const weaponButton =
-            document.getElementById(
-                "weaponButton"
-            );
+            fireButton.addEventListener("pointerdown", event => {
+                event.preventDefault();
+                this.startFiring();
+            });
 
-        if (fireButton) {
+            const stop = () => this.stopFiring();
 
-            fireButton.addEventListener(
-                "pointerdown",
-                (event) => {
-
-                    event.preventDefault();
-
-                    this.startFiring();
-                }
-            );
-
-            const stop = () => {
-                this.stopFiring();
-            };
-
-            fireButton.addEventListener(
-                "pointerup",
-                stop
-            );
-
-            fireButton.addEventListener(
-                "pointercancel",
-                stop
-            );
-
-            fireButton.addEventListener(
-                "lostpointercapture",
-                stop
-            );
-
-            window.addEventListener(
-                "pointerup",
-                stop
-            );
-
-            window.addEventListener(
-                "blur",
-                stop
-            );
+            fireButton.addEventListener("pointerup", stop);
+            fireButton.addEventListener("pointercancel", stop);
+            fireButton.addEventListener("lostpointercapture", stop);
+            window.addEventListener("pointerup", stop);
+            window.addEventListener("blur", stop);
         }
 
-        if (weaponButton) {
+        if (weaponButton && !weaponButton.dataset.weaponBound) {
+            weaponButton.dataset.weaponBound = "true";
 
-            weaponButton.addEventListener(
-                "pointerdown",
-                (event) => {
-
-                    event.preventDefault();
-
-                    this.nextWeapon();
-                }
-            );
+            weaponButton.addEventListener("pointerdown", event => {
+                event.preventDefault();
+                this.nextWeapon();
+            });
         }
 
         this.createReloadButton();
 
-        window.addEventListener(
-            "keydown",
-            (event) => {
+        if (!this.keyboardBound) {
+            this.keyboardBound = true;
 
-                if (
-                    event.repeat ||
-                    this.isGamePaused()
-                ) {
-                    return;
+            window.addEventListener("keydown", event => {
+                if (event.repeat || this.isGamePaused()) return;
+
+                switch (event.key.toLowerCase()) {
+                    case "r":
+                        this.reload();
+                        break;
+                    case "1":
+                    case "2":
+                    case "3":
+                    case "4":
+                    case "5":
+                        this.selectWeapon(Number(event.key) - 1);
+                        break;
                 }
-
-                if (
-                    event.key.toLowerCase() === "r"
-                ) {
-
-                    this.reload();
-
-                } else if (
-                    event.key === "1"
-                ) {
-
-                    this.selectWeapon(0);
-
-                } else if (
-                    event.key === "2"
-                ) {
-
-                    this.selectWeapon(1);
-
-                } else if (
-                    event.key === "3"
-                ) {
-
-                    this.selectWeapon(2);
-
-                } else if (
-                    event.key === "4"
-                ) {
-
-                    this.selectWeapon(3);
-
-                } else if (
-                    event.key === "5"
-                ) {
-
-                    this.selectWeapon(4);
-                }
-            }
-        );
+            });
+        }
     },
 
-    createReloadButton() {
+    keyboardBound: false,
 
-        const controls =
-            document.getElementById(
-                "actionButtons"
-            );
+    createReloadButton() {
+        const controls = document.getElementById("actionButtons");
 
         if (
             !controls ||
-            document.getElementById(
-                "reloadButton"
-            )
+            document.getElementById("reloadButton")
         ) {
             return;
         }
 
-        const button =
-            document.createElement("button");
-
+        const button = document.createElement("button");
         button.id = "reloadButton";
         button.textContent = "RELOAD";
-
         controls.appendChild(button);
 
-        button.addEventListener(
-            "pointerdown",
-            (event) => {
-
-                event.preventDefault();
-
-                this.reload();
-            }
-        );
+        button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            this.reload();
+        });
     },
 
     showFireFeedback(hit) {
+        const crosshair = document.getElementById("crosshair");
+        if (!crosshair) return;
 
-        const crosshair =
-            document.getElementById(
-                "crosshair"
-            );
-
-        if (!crosshair) {
-            return;
-        }
-
-        crosshair.textContent =
-            hit ? "×" : "+";
-
-        crosshair.style.color =
-            hit ? "#ff5555" : "#ffffff";
+        crosshair.textContent = hit ? "×" : "+";
+        crosshair.style.color = hit ? "#ff5555" : "#ffffff";
 
         if (this.crosshairTimer) {
             clearTimeout(this.crosshairTimer);
         }
 
-        this.crosshairTimer =
-            setTimeout(
-                () => {
-
-                    crosshair.textContent = "+";
-                    crosshair.style.color = "#ffffff";
-
-                },
-                120
-            );
+        this.crosshairTimer = setTimeout(() => {
+            crosshair.textContent = "+";
+            crosshair.style.color = "#ffffff";
+        }, 120);
     },
 
     showMessage(message) {
-
-        if (
-            typeof UI !== "undefined" &&
-            typeof UI.showMessage === "function"
-        ) {
-
+        if (typeof UI !== "undefined" && UI.showMessage) {
             UI.showMessage(message);
         }
     },
 
     isGamePaused() {
-
-        return (
-            typeof UI !== "undefined" &&
-            UI.paused === true
-        );
+        return typeof UI !== "undefined" && UI.paused === true;
     },
 
-    addAmmo(amount) {
+    addAmmo(amount, weaponIndex = this.currentIndex) {
+        const weapon = this.weapons[weaponIndex];
+        if (!weapon) return 0;
 
-        const weapon =
-            this.getCurrent();
+        const room = Math.max(0, this.maxAmmoReserve - weapon.ammo);
+        const added = Math.min(room, Math.max(0, Number(amount) || 0));
 
-        weapon.ammo +=
-            Math.max(0, amount);
-
+        weapon.ammo += added;
         this.updateUI();
+
+        return added;
     },
 
     reset() {
-
         this.stopFiring();
         this.cancelReload();
 
         this.currentIndex = 0;
         this.lastShot = 0;
 
-        this.weapons[0].magazine = 12;
-        this.weapons[0].ammo = 60;
+        const startingAmmo = [
+            [12, 60],
+            [30, 120],
+            [30, 120],
+            [6, 36],
+            [5, 25]
+        ];
 
-        this.weapons[1].magazine = 30;
-        this.weapons[1].ammo = 120;
-
-        this.weapons[2].magazine = 30;
-        this.weapons[2].ammo = 120;
-
-        this.weapons[3].magazine = 6;
-        this.weapons[3].ammo = 36;
-
-        this.weapons[4].magazine = 5;
-        this.weapons[4].ammo = 25;
+        this.weapons.forEach((weapon, index) => {
+            weapon.magazine = startingAmmo[index][0];
+            weapon.ammo = startingAmmo[index][1];
+        });
 
         this.updateUI();
     }
