@@ -1,6 +1,7 @@
 // PROJECT: BLACKOUT
 // Vehicle System
 // Cars + Enter/Exit + Driving + Health + Destruction
+// Audio Integration
 
 const Vehicles = {
 
@@ -432,6 +433,13 @@ const Vehicles = {
 
         vehicle.speed = 0;
 
+        // Play vehicle start sound.
+        if (
+            typeof AudioSystem !== "undefined"
+        ) {
+            AudioSystem.vehicleStart();
+        }
+
         if (
             typeof Camera !== "undefined"
         ) {
@@ -466,9 +474,9 @@ const Vehicles = {
             ) * 2;
 
         const sideZ =
-                -Math.sin(
-                    vehicle.rotation
-                ) * 2;
+            -Math.sin(
+                vehicle.rotation
+            ) * 2;
 
         Player.position.x =
             vehicle.x +
@@ -489,6 +497,13 @@ const Vehicles = {
 
         this.activeVehicle =
             null;
+
+        // Play vehicle stop sound.
+        if (
+            typeof AudioSystem !== "undefined"
+        ) {
+            AudioSystem.vehicleStop();
+        }
 
         if (
             typeof Camera !== "undefined"
@@ -583,6 +598,13 @@ const Vehicles = {
         vehicle.speed = 0;
         vehicle.destroyed = true;
         vehicle.occupied = false;
+
+        // Play vehicle destruction sound.
+        if (
+            typeof AudioSystem !== "undefined"
+        ) {
+            AudioSystem.explosion();
+        }
 
         if (
             this.activeVehicle ===
