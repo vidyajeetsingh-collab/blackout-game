@@ -440,13 +440,31 @@ const Vehicles = {
             AudioSystem.vehicleStart();
         }
 
-        if (
-            typeof Camera !== "undefined"
-        ) {
+// Vehicle combat camera setup.
+if (typeof Camera !== "undefined") {
+    Camera.distance = 8;
+    Camera.height = 4;
 
-            Camera.distance = 8;
-            Camera.height = 4;
-        }
+    // Face the camera in the car's direction.
+    Camera.yaw = vehicle.rotation;
+    Camera.followPlayer();
+}
+
+// Keep the current weapon and ammo.
+// The existing FIRE button uses Weapons.fire().
+if (
+    typeof Weapons !== "undefined" &&
+    typeof Weapons.updateUI === "function"
+) {
+    Weapons.updateUI();
+}
+
+if (
+    typeof UI !== "undefined" &&
+    typeof UI.showMessage === "function"
+) {
+    UI.showMessage("VEHICLE COMBAT READY");
+}
 
         this.updateVehicleUI();
 
@@ -504,14 +522,13 @@ const Vehicles = {
         ) {
             AudioSystem.vehicleStop();
         }
+// Restore the normal on-foot camera.
+if (typeof Camera !== "undefined") {
+    Camera.distance = 6;
+    Camera.height = 2.8;
 
-        if (
-            typeof Camera !== "undefined"
-        ) {
-
-            Camera.distance = 6;
-            Camera.height = 2.8;
-        }
+    Camera.followPlayer();
+}
 
         this.updateVehicleUI();
 
