@@ -189,15 +189,28 @@ const Enemies = {
         );
 
         bestEnemy.hitFlash = 0.16;
-        bestEnemy.alert = true;
-        bestEnemy.state = "chase";
+bestEnemy.alert = true;
+bestEnemy.state = "chase";
 
-        if (bestEnemy.health <= 0) {
-            bestEnemy.alive = false;
-            bestEnemy.state = "dead";
+// Play an impact sound when an enemy is hit.
+if (typeof AudioSystem !== "undefined") {
+    AudioSystem.impact();
+}
 
-            console.log("ENEMY ELIMINATED:", bestEnemy.id);
-        }
+if (bestEnemy.health <= 0) {
+    bestEnemy.alive = false;
+    bestEnemy.state = "dead";
+
+    // Drones explode when destroyed.
+    if (
+        bestEnemy.type === "drone" &&
+        typeof AudioSystem !== "undefined"
+    ) {
+        AudioSystem.explosion();
+    }
+
+    console.log("ENEMY ELIMINATED:", bestEnemy.id);
+}
 
         return true;
     },
