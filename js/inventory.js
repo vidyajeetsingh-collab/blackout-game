@@ -1,6 +1,7 @@
 // PROJECT: BLACKOUT
 // Inventory System
 // Medkits + Ammo + Pickups + Limits
+// Audio Integration
 
 const Inventory = {
 
@@ -247,6 +248,14 @@ const Inventory = {
 
         pickup.collected =
             true;
+
+        // Play pickup sound after a successful collection.
+        if (
+            typeof AudioSystem !==
+            "undefined"
+        ) {
+            AudioSystem.pickup();
+        }
 
         console.log(
             "PICKUP:",
