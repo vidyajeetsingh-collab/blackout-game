@@ -173,7 +173,13 @@ const Missions = {
 
             Weapons.reset();
         }
-
+// Reset medkits and ammo pickups for the new mission.
+if (
+    typeof Inventory !== "undefined" &&
+    typeof Inventory.reset === "function"
+) {
+    Inventory.reset();
+}
         if (
             typeof Enemies !==
             "undefined" &&
