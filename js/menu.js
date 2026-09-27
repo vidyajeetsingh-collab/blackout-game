@@ -223,8 +223,24 @@ const Menu = {
                     </button>
                 </div>
 
-                <div class="menu-status"
-                     id="blackoutMenuStatus"></div>
+              <div class="menu-status"
+     id="blackoutMenuStatus"></div>
+
+<div id="blackoutCampaignPanel"
+     style="display:none; margin-top:18px; text-align:left;">
+
+    <h3 style="color:#00cfff; letter-spacing:2px;">
+        CAMPAIGN MISSIONS
+    </h3>
+
+    <div id="blackoutMissionList"></div>
+
+    <button class="menu-btn"
+            data-menu-action="back"
+            style="margin-top:12px;">
+        ← BACK TO MENU
+    </button>
+</div>
 
                 <div class="menu-footer">
                     BLACKOUT PROJECT · FIELD SYSTEMS
