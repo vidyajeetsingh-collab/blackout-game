@@ -404,6 +404,10 @@ const Player = {
                 0,
                 this.health - amount
             );
+// Play the player damage sound.
+if (typeof AudioSystem !== "undefined") {
+    AudioSystem.playerDamage();
+}
 
         if (
             typeof UI !== "undefined" &&
