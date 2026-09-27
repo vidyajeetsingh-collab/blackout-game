@@ -252,32 +252,117 @@ const Menu = {
         this.element = menu;
     },
 
-    bindEvents() {
-        this.element.addEventListener("click", event => {
-            const button = event.target.closest("[data-menu-action]");
-            if (!button) return;
+bindEvents() {
+    this.element.addEventListener("click", event => {
+        const button = event.target.closest("[data-menu-action]");
+        if (!button) return;
 
-            const action = button.dataset.menuAction;
+        const action = button.dataset.menuAction;
 
-            // Notify the game when a menu option is selected.
+        if (action === "missions") {
+            this.showCampaign();
+            return;
+        }
+
+        if (action === "back") {
+            this.showMainOptions();
+            return;
+        }
+
+        if (action === "select-mission") {
             this.element.dispatchEvent(
                 new CustomEvent("blackout:menu-action", {
                     bubbles: true,
-                    detail: { action }
+                    detail: {
+                        action: "select-mission",
+                        index: Number(button.dataset.missionIndex)
+                    }
                 })
             );
+            return;
+        }
 
-            if (action === "new") {
-                this.setStatus("NEW GAME SELECTED");
-            } else if (action === "continue") {
-                this.setStatus("CONTINUE SELECTED");
-            } else if (action === "missions") {
-                this.setStatus("CAMPAIGN SELECTED");
-            } else if (action === "settings") {
-                this.setStatus("SETTINGS SELECTED");
-            }
-        });
-    },
+        this.element.dispatchEvent(
+            new CustomEvent("blackout:menu-action", {
+                bubbles: true,
+                detail: { action }
+            })
+        );
+
+        if (action === "new") {
+            this.setStatus("NEW GAME SELECTED");
+        } else if (action === "continue") {
+            this.setStatus("CONTINUE SELECTED");
+        } else if (action === "settings") {
+            this.setStatus("SETTINGS SELECTED");
+        }
+    });
+},
+
+showCampaign() {
+    const buttons = this.element.querySelector(".menu-buttons");
+    const panel = document.getElementById("blackoutCampaignPanel");
+    const subtitle = this.element.querySelector(".menu-subtitle");
+    const list = document.getElementById("blackoutMissionList");
+
+    if (!panel || !list || !buttons) return;
+
+    buttons.style.display = "none";
+    panel.style.display = "block";
+
+    if (subtitle) subtitle.textContent = "SELECT YOUR OPERATION";
+
+    list.innerHTML = "";
+
+    const missions = Missions.missions;
+
+    missions.forEach((mission, index) => {
+        const button = document.createElement("button");
+        button.className = "menu-btn";
+        button.style.marginBottom = "8px";
+        button.style.textAlign = "left";
+        button.style.padding = "10px 14px";
+
+        const status = mission.completed
+            ? "✓ COMPLETED"
+            : mission.unlocked
+                ? "● UNLOCKED"
+                : "🔒 LOCKED";
+
+        button.textContent =
+            `${mission.name} — ${mission.title} | ${status}`;
+
+        button.disabled = !mission.unlocked;
+        button.style.opacity = mission.unlocked ? "1" : "0.45";
+
+        if (mission.unlocked) {
+            button.dataset.menuAction = "select-mission";
+            button.dataset.missionIndex = index;
+        }
+
+        list.appendChild(button);
+    });
+
+    this.setStatus(
+        `${Missions.getCompletedCount()} / ${missions.length} MISSIONS COMPLETE`
+    );
+},
+
+showMainOptions() {
+    const buttons = this.element.querySelector(".menu-buttons");
+    const panel = document.getElementById("blackoutCampaignPanel");
+    const subtitle = this.element.querySelector(".menu-subtitle");
+
+    if (buttons) buttons.style.display = "grid";
+    if (panel) panel.style.display = "none";
+
+    if (subtitle) {
+        subtitle.textContent =
+            "COMMUNICATIONS LOST · MISSION ACTIVE";
+    }
+
+    this.setStatus("");
+},
 
     setStatus(message) {
         const status = document.getElementById("blackoutMenuStatus");
