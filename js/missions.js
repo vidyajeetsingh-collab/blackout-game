@@ -176,6 +176,14 @@ const Missions = {
         }
 
             this.survivalSeconds = Math.max(0, this.survivalSeconds - 1);
+// Auto-save the survival countdown every 10 seconds.
+if (
+    this.survivalSeconds % 10 === 0 &&
+    typeof Save !== "undefined" &&
+    typeof Save.saveGame === "function"
+) {
+    Save.saveGame();
+}
             this.updateObjective();
 
             if (this.survivalSeconds <= 0) {
