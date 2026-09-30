@@ -138,7 +138,7 @@ const Missions = {
 
         this.completed = false;
 
-        mission.completed = false;
+        
 
         this.resetMissionSystems();
 
