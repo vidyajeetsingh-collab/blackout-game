@@ -439,6 +439,8 @@ const Save = {
 
             completed:
                 Missions.completed,
+survivalSeconds:
+    Missions.survivalSeconds,
 
             missions:
                 Missions.missions.map(
@@ -487,6 +489,12 @@ const Save = {
 
         Missions.completed =
             data.completed === true;
+if (typeof data.survivalSeconds === "number") {
+    Missions.survivalSeconds = Math.max(
+        0,
+        Math.min(60, data.survivalSeconds)
+    );
+}
 
         if (
             Array.isArray(
@@ -519,12 +527,21 @@ const Save = {
         }
 
         if (
-            typeof Missions.updateObjective ===
-            "function"
-        ) {
+    typeof Missions.updateObjective === "function"
+) {
+    Missions.updateObjective();
+}
 
-            Missions.updateObjective();
-        }
+const currentMission = Missions.getCurrent();
+
+if (
+    Missions.active &&
+    currentMission &&
+    currentMission.objective === "SURVIVE THE ENEMY ATTACK" &&
+    Missions.survivalSeconds > 0
+) {
+    Missions.startSurvivalTimer();
+}
     },
 
     getVehicleData() {
