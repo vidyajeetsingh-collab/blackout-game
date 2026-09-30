@@ -170,6 +170,10 @@ const Missions = {
                 this.clearSurvivalTimer();
                 return;
             }
+        // Freeze the countdown while the game is paused.
+        if (typeof UI !== "undefined" && UI.paused) {
+            return;
+        }
 
             this.survivalSeconds = Math.max(0, this.survivalSeconds - 1);
             this.updateObjective();
